@@ -30,6 +30,7 @@ export default function TakwiraApp() {
     date: '',
     time: '',
     place: '',
+    teamSize: 10,
     ballResponsible: '',
     bibsResponsible: ''
   });
@@ -88,12 +89,18 @@ export default function TakwiraApp() {
       time: 'Uhrzeit',
       opponent: 'Spielname',
       location: 'Ort',
+      teamSize: 'Spieler pro Team',
       organizer: 'Organisator',
       ballResponsible: '⚽ Ball-Verantwortlicher (optional)',
       bibsResponsible: '🟡 Trainings-Westen (optional)',
       specialRoles: '⭐ Besondere Rollen',
       ballShort: '⚽ Ball',
       bibsShort: '🟡 Westen',
+      claimRole: '➕ Ich bring mit',
+      freeRole: 'Noch frei',
+      rolesClaimedLater: 'werden im Spiel übernommen',
+      release: 'Freigeben',
+      confirmRelease: 'Rolle wirklich freigeben?',
       noRoles: 'Keine Rollen festgelegt',
       enterName: 'Gib deinen Namen ein',
       chooseTeam: 'Wähle dein Team',
@@ -138,12 +145,18 @@ export default function TakwiraApp() {
       time: 'Time',
       opponent: 'Match Name',
       location: 'Location',
+      teamSize: 'Players per Team',
       organizer: 'Organizer',
       ballResponsible: '⚽ Ball Responsible (optional)',
       bibsResponsible: '🟡 Training Bibs (optional)',
       specialRoles: '⭐ Special Roles',
       ballShort: '⚽ Ball',
       bibsShort: '🟡 Bibs',
+      claimRole: "➕ I'll bring it",
+      freeRole: 'Still open',
+      rolesClaimedLater: 'claimed inside the match',
+      release: 'Release',
+      confirmRelease: 'Really release this role?',
       noRoles: 'No roles assigned',
       enterName: 'Enter your name',
       chooseTeam: 'Choose your team',
@@ -188,12 +201,18 @@ export default function TakwiraApp() {
       time: 'Heure',
       opponent: 'Nom du match',
       location: 'Lieu',
+      teamSize: 'Joueurs par équipe',
       organizer: 'Organisateur',
       ballResponsible: '⚽ Responsable du Ballon (optionnel)',
       bibsResponsible: '🟡 Chasubles (optionnel)',
       specialRoles: '⭐ Rôles Spéciaux',
       ballShort: '⚽ Ballon',
       bibsShort: '🟡 Chasubles',
+      claimRole: '➕ Je apporte',
+      freeRole: 'Libre',
+      rolesClaimedLater: 'à prendre dans le match',
+      release: 'Libérer',
+      confirmRelease: 'Vraiment libérer ce rôle?',
       noRoles: 'Aucun rôle attribué',
       enterName: 'Entrez votre nom',
       chooseTeam: 'Choisissez votre équipe',
@@ -238,12 +257,18 @@ export default function TakwiraApp() {
       time: 'الوقت',
       opponent: 'اسم المباراة',
       location: 'الموقع',
+      teamSize: 'لاعبين في كل فريق',
       organizer: 'المنظم',
       ballResponsible: '⚽ مسؤول الكرة (اختياري)',
       bibsResponsible: '🟡 المريلات (اختياري)',
       specialRoles: '⭐ الأدوار الخاصة',
       ballShort: '⚽ الكرة',
       bibsShort: '🟡 المريلات',
+      claimRole: '➕ أنا نجيبها',
+      freeRole: 'مازال فاضي',
+      rolesClaimedLater: 'تتاخذ في الماتش',
+      release: 'تخلي',
+      confirmRelease: 'تحب تخلي الدور؟',
       noRoles: 'ما فماش أدوار محددة',
       enterName: 'أدخل اسمك',
       chooseTeam: 'اختر فريقك',
@@ -306,6 +331,7 @@ export default function TakwiraApp() {
       date: '',
       time: '',
       place: '',
+      teamSize: 10,
       ballResponsible: '',
       bibsResponsible: ''
     });
@@ -316,7 +342,8 @@ export default function TakwiraApp() {
     if (!playerName.trim() || !currentMatch) return;
     const key = team === 'A' ? 'teamA' : 'teamB';
     const list = currentMatch[key] || [];
-    if (list.length >= 10) {
+    const cap = currentMatch.teamSize || 10;
+    if (list.length >= cap) {
       alert(t.teamFull);
       return;
     }
@@ -368,6 +395,22 @@ export default function TakwiraApp() {
     alert(t.copied);
   };
 
+  // Rolle übernehmen (Ball oder Westen) — nur wenn noch frei
+  const claimRole = async (roleKey) => {
+    if (!currentMatch) return;
+    if ((currentMatch[roleKey] || '').trim()) return; // schon vergeben
+    const name = (playerName.trim() || window.prompt(t.enterName) || '').trim();
+    if (!name) return;
+    await updateDoc(doc(db, 'matches', currentMatch.id), { [roleKey]: name });
+  };
+
+  // Rolle wieder freigeben
+  const releaseRole = async (roleKey) => {
+    if (!currentMatch) return;
+    if (!window.confirm(t.confirmRelease)) return;
+    await updateDoc(doc(db, 'matches', currentMatch.id), { [roleKey]: '' });
+  };
+
   const sendSuggestion = async () => {
     if (!suggestionText.trim()) return;
     await addDoc(collection(db, 'suggestions'), {
@@ -384,7 +427,7 @@ export default function TakwiraApp() {
   const hasRoles = (m) => (m.ballResponsible || '').trim() || (m.bibsResponsible || '').trim();
 
   // Verteilt N Spieler auf Reihen (Torwart + Feldreihen), egal wie viele.
-  // 1 -> [1] | 5 -> [1,2,2] | 8 -> [1,3,3,1] | 10 -> [1,4,3,2] (1-4-3-2)
+  // 1 -> [1] | 5 -> [1,2,2] | 8 -> [1,3,3,1] | 10 -> [1,4,3,2] | 11 -> [1,4,4,2]
   const buildFormation = (count) => {
     if (count <= 0) return [];
     if (count === 1) return [1];
@@ -398,9 +441,23 @@ export default function TakwiraApp() {
       6: [3, 2, 1],
       7: [3, 3, 1],
       8: [3, 3, 2],
-      9: [4, 3, 2]
+      9: [4, 3, 2],
+      10: [4, 4, 2],
+      11: [4, 4, 3],
+      12: [4, 5, 3],
+      13: [5, 5, 3]
     };
-    const rows = presets[outfield] || [4, 3, 2];
+    let rows = presets[outfield];
+    if (!rows) {
+      // Für sehr große Zahlen: gleichmäßig auf 4er-Reihen verteilen
+      rows = [];
+      let rest = outfield;
+      while (rest > 0) {
+        const take = Math.min(4, rest);
+        rows.push(take);
+        rest -= take;
+      }
+    }
     return [1, ...rows]; // erste Reihe = Torwart
   };
 
@@ -825,7 +882,7 @@ export default function TakwiraApp() {
                         whiteSpace: 'nowrap'
                       }}
                     >
-                      🎮 {(match.teamA?.length || 0) + (match.teamB?.length || 0)}/20
+                      🎮 {(match.teamA?.length || 0) + (match.teamB?.length || 0)}/{(match.teamSize || 10) * 2}
                     </div>
                   </div>
 
@@ -874,7 +931,7 @@ export default function TakwiraApp() {
                         fontSize: '13px'
                       }}
                     >
-                      🔴 {match.teamA?.length || 0}/10
+                      🔴 {match.teamA?.length || 0}/{match.teamSize || 10}
                     </div>
                     <div
                       style={{
@@ -887,7 +944,7 @@ export default function TakwiraApp() {
                         fontSize: '13px'
                       }}
                     >
-                      🔵 {match.teamB?.length || 0}/10
+                      🔵 {match.teamB?.length || 0}/{match.teamSize || 10}
                     </div>
                   </div>
                 </div>
@@ -1160,32 +1217,65 @@ export default function TakwiraApp() {
               placeholder="z.B. Mainz Sportpark"
             />
 
+            <label style={labelStyle}>{t.teamSize}</label>
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                flexWrap: 'wrap',
+                marginBottom: '1rem'
+              }}
+            >
+              {[5, 6, 7, 8, 9, 10, 11].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setNewMatch({ ...newMatch, teamSize: size })}
+                  style={{
+                    flex: '1 0 auto',
+                    minWidth: '52px',
+                    padding: '12px 0',
+                    background:
+                      newMatch.teamSize === size
+                        ? 'linear-gradient(135deg, #27ae60 0%, #1e8449 100%)'
+                        : 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    border:
+                      newMatch.teamSize === size
+                        ? 'none'
+                        : '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontWeight: '800',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.5)',
+                marginTop: '-0.5rem',
+                marginBottom: '1rem'
+              }}
+            >
+              {newMatch.teamSize} vs {newMatch.teamSize}
+            </div>
+
             <div
               style={{
                 borderTop: '1px dashed rgba(255,255,255,0.2)',
                 paddingTop: '1rem',
-                marginBottom: '0.5rem',
+                marginBottom: '1rem',
                 fontSize: '11px',
-                color: 'rgba(255,255,255,0.5)'
+                color: 'rgba(255,255,255,0.5)',
+                textAlign: 'center'
               }}
             >
-              {t.specialRoles} — optional
+              {t.specialRoles}: {t.rolesClaimedLater}
             </div>
-
-            <label style={labelStyle}>{t.ballResponsible}</label>
-            <input
-              style={inputStyle}
-              value={newMatch.ballResponsible}
-              onChange={(e) => setNewMatch({ ...newMatch, ballResponsible: e.target.value })}
-              placeholder="z.B. Marco"
-            />
-            <label style={labelStyle}>{t.bibsResponsible}</label>
-            <input
-              style={inputStyle}
-              value={newMatch.bibsResponsible}
-              onChange={(e) => setNewMatch({ ...newMatch, bibsResponsible: e.target.value })}
-              placeholder="z.B. Klaus"
-            />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
@@ -1331,45 +1421,95 @@ export default function TakwiraApp() {
               </div>
             )}
 
-            {/* BESONDERE ROLLEN — nur wenn vorhanden */}
-            {hasRoles(currentMatch) ? (
+            {/* BESONDERE ROLLEN — offen, jeder kann übernehmen */}
+            <div
+              style={{
+                background:
+                  'linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%)',
+                border: '2px solid rgba(255, 193, 7, 0.4)',
+                borderRadius: '12px',
+                padding: '1rem',
+                marginBottom: '1.5rem'
+              }}
+            >
               <div
                 style={{
-                  background:
-                    'linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%)',
-                  border: '2px solid rgba(255, 193, 7, 0.4)',
-                  borderRadius: '12px',
-                  padding: '1rem',
-                  marginBottom: '1.5rem'
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  color: '#FFD700',
+                  marginBottom: '0.75rem',
+                  textTransform: 'uppercase'
                 }}
               >
-                <div
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: '800',
-                    color: '#FFD700',
-                    marginBottom: '0.75rem',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  {t.specialRoles}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  {currentMatch.ballResponsible ? (
-                    <div style={{ background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255, 193, 7, 0.3)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem', fontWeight: '700' }}>{t.ballShort}</div>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#FFD700' }}>{currentMatch.ballResponsible}</div>
-                    </div>
-                  ) : <div />}
-                  {currentMatch.bibsResponsible ? (
-                    <div style={{ background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255, 193, 7, 0.3)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem', fontWeight: '700' }}>{t.bibsShort}</div>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#FFD700' }}>{currentMatch.bibsResponsible}</div>
-                    </div>
-                  ) : <div />}
-                </div>
+                {t.specialRoles}
               </div>
-            ) : null}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {[
+                  { key: 'ballResponsible', label: t.ballShort },
+                  { key: 'bibsResponsible', label: t.bibsShort }
+                ].map((role) => {
+                  const taken = (currentMatch[role.key] || '').trim();
+                  return (
+                    <div
+                      key={role.key}
+                      style={{
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255, 193, 7, 0.3)',
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        textAlign: 'center'
+                      }}
+                    >
+                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem', fontWeight: '700' }}>
+                        {role.label}
+                      </div>
+                      {taken ? (
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '800', color: '#FFD700', marginBottom: '0.5rem' }}>
+                            {taken}
+                          </div>
+                          <button
+                            onClick={() => releaseRole(role.key)}
+                            style={{
+                              fontSize: '10px',
+                              padding: '4px 10px',
+                              background: 'transparent',
+                              border: '1px solid rgba(255,255,255,0.3)',
+                              color: 'rgba(255,255,255,0.7)',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontWeight: '600'
+                            }}
+                          >
+                            {t.release}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => claimRole(role.key)}
+                          style={{
+                            width: '100%',
+                            fontSize: '11px',
+                            padding: '8px',
+                            background: 'linear-gradient(135deg, #27ae60 0%, #1e8449 100%)',
+                            border: 'none',
+                            color: '#fff',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: '700'
+                          }}
+                        >
+                          {t.claimRole}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '0.6rem', textAlign: 'center' }}>
+                {t.enterName} ↑ {language === 'de' ? '(oben eintippen, dann übernehmen)' : language === 'fr' ? '(tape en haut puis prends le rôle)' : language === 'ar' ? '(اكتب فوق ثم خذ الدور)' : '(type above, then claim)'}
+              </div>
+            </div>
 
             {/* PLATZ — echtes Feld mit Trikots in Formation */}
             <div
@@ -1432,7 +1572,7 @@ export default function TakwiraApp() {
                     padding: '4px 8px'
                   }}
                 >
-                  🔴 {t.teamA} — {currentMatch.teamA?.length || 0}/10
+                  🔴 {t.teamA} — {currentMatch.teamA?.length || 0}/{currentMatch.teamSize || 10}
                 </div>
                 <TeamHalf
                   players={currentMatch.teamA || []}
@@ -1457,7 +1597,7 @@ export default function TakwiraApp() {
                     textAlign: 'right'
                   }}
                 >
-                  🔵 {t.teamB} — {currentMatch.teamB?.length || 0}/10
+                  🔵 {t.teamB} — {currentMatch.teamB?.length || 0}/{currentMatch.teamSize || 10}
                 </div>
               </div>
             </div>
