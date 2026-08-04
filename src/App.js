@@ -31,6 +31,10 @@ export default function TakwiraApp() {
   const [suggestionText, setSuggestionText] = useState('');
   const [suggestionName, setSuggestionName] = useState('');
   const [suggestionSent, setSuggestionSent] = useState(false);
+  const [modalMsg, setModalMsg] = useState(null); // {kind:'info'|'error'|'success', text}
+
+  // Zentrale Meldung in der Mitte des Bildschirms anzeigen
+  const showMsg = (text, kind = 'info') => setModalMsg({ text, kind });
 
   const [newMatch, setNewMatch] = useState({
     organizer: '',
@@ -39,9 +43,28 @@ export default function TakwiraApp() {
     time: '',
     place: '',
     teamSize: 10,
+    teamAName: '',
+    teamBName: '',
+    teamAColor: '#e74c3c',
+    teamBColor: '#2980ef',
     ballResponsible: '',
     bibsResponsible: ''
   });
+
+  // Gerät-ID für Gäste (bleibt gleich auch wenn Firebase-UID sich ändert)
+  const getDeviceId = () => {
+    let id = '';
+    try {
+      id = localStorage.getItem('takwira_device_id') || '';
+      if (!id) {
+        id = 'dev_' + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem('takwira_device_id', id);
+      }
+    } catch {
+      id = 'dev_temp_' + Math.random().toString(36).slice(2, 8);
+    }
+    return id;
+  };
 
   // ============================================
   //  FIREBASE: Login-Status beobachten
@@ -52,6 +75,11 @@ export default function TakwiraApp() {
       setAuthReady(true);
       if (u && !u.isAnonymous && u.displayName) {
         setPlayerName((prev) => prev || u.displayName.split(' ')[0]);
+      }
+      if (u && u.isAnonymous) {
+        // Gäste bekommen einen freundlichen Anzeigenamen aus der Geräte-ID
+        const suffix = getDeviceId().slice(-4).toUpperCase();
+        setPlayerName((prev) => prev || 'Gast-' + suffix);
       }
     });
     return () => unsub();
@@ -135,13 +163,14 @@ export default function TakwiraApp() {
       rolesClaimedLater: 'werden im Spiel übernommen',
       release: 'Freigeben',
       confirmRelease: 'Rolle wirklich freigeben?',
+      onlyOrganizerRole: 'Nur der Organisator kann Rollen freigeben.',
       noRoles: 'Keine Rollen festgelegt',
       enterName: 'Gib deinen Namen ein',
       chooseTeam: 'Wähle dein Team',
-      teamA: 'Team Rot',
-      teamB: 'Team Blau',
-      joinTeamA: '🔴 Team Rot',
-      joinTeamB: '🔵 Team Blau',
+      teamA: 'Team A',
+      teamB: 'Team B',
+      joinTeamA: 'Team A',
+      joinTeamB: 'Team B',
       backToMatches: '← Zurück',
       editMatch: 'Spiel bearbeiten',
       edit: '✏️ Bearbeiten',
@@ -157,6 +186,15 @@ export default function TakwiraApp() {
       confirmRemovePlayer: 'wirklich entfernen?',
       onlyOwnPlayer: 'Du kannst nur deinen eigenen Eintrag entfernen.',
       teamFull: 'Team ist voll!',
+      matchFixed: 'Match ist voll — Aufstellung steht!',
+      nameTaken: 'Name ist in diesem Match schon vergeben.',
+      alreadyBooked: 'Du bist an dem Tag schon für ein Spiel angemeldet.',
+      needLogin: 'Bitte zuerst anmelden.',
+      needName: 'Bitte trage deinen Namen ein.',
+      onlyClaimerOrOrg: 'Nur der Übernehmende oder der Organisator können die Rolle freigeben.',
+      viewOnly: 'Nur ansehen — du bist nicht in diesem Spiel angemeldet.',
+      cannotEditOthers: 'Du kannst nur dich selbst hinzufügen oder entfernen.',
+      morePlayers: 'Mehr Spieler gesucht',
       liveSync: '🟢 Live — alle sehen dasselbe',
       loginTitle: 'Willkommen bei Takwira',
       loginSubtitle: 'Melde dich an, um mitzuspielen',
@@ -200,13 +238,14 @@ export default function TakwiraApp() {
       rolesClaimedLater: 'claimed inside the match',
       release: 'Release',
       confirmRelease: 'Really release this role?',
+      onlyOrganizerRole: 'Only the organizer can release roles.',
       noRoles: 'No roles assigned',
       enterName: 'Enter your name',
       chooseTeam: 'Choose your team',
-      teamA: 'Red Team',
-      teamB: 'Blue Team',
-      joinTeamA: '🔴 Red Team',
-      joinTeamB: '🔵 Blue Team',
+      teamA: 'Team A',
+      teamB: 'Team B',
+      joinTeamA: 'Team A',
+      joinTeamB: 'Team B',
       backToMatches: '← Back',
       editMatch: 'Edit Match',
       edit: '✏️ Edit',
@@ -222,6 +261,15 @@ export default function TakwiraApp() {
       confirmRemovePlayer: 'really remove?',
       onlyOwnPlayer: 'You can only remove your own entry.',
       teamFull: 'Team is full!',
+      matchFixed: 'Match full — line-up is set!',
+      nameTaken: 'That name is already in this match.',
+      alreadyBooked: 'You are already booked for a game that day.',
+      needLogin: 'Please sign in first.',
+      needName: 'Please type your name.',
+      onlyClaimerOrOrg: 'Only the person who claimed or the organizer can release the role.',
+      viewOnly: 'View only — you are not in this match.',
+      cannotEditOthers: 'You can only add or remove yourself.',
+      morePlayers: 'More players needed',
       liveSync: '🟢 Live — everyone sees the same',
       loginTitle: 'Welcome to Takwira',
       loginSubtitle: 'Sign in to join the game',
@@ -265,13 +313,14 @@ export default function TakwiraApp() {
       rolesClaimedLater: 'à prendre dans le match',
       release: 'Libérer',
       confirmRelease: 'Vraiment libérer ce rôle?',
+      onlyOrganizerRole: 'Seul organisateur peut libérer les rôles.',
       noRoles: 'Aucun rôle attribué',
       enterName: 'Entrez votre nom',
       chooseTeam: 'Choisissez votre équipe',
-      teamA: 'Équipe Rouge',
-      teamB: 'Équipe Bleue',
-      joinTeamA: '🔴 Équipe Rouge',
-      joinTeamB: '🔵 Équipe Bleue',
+      teamA: 'Team A',
+      teamB: 'Team B',
+      joinTeamA: 'Team A',
+      joinTeamB: 'Team B',
       backToMatches: '← Retour',
       editMatch: 'Modifier le match',
       edit: '✏️ Modifier',
@@ -287,6 +336,15 @@ export default function TakwiraApp() {
       confirmRemovePlayer: 'vraiment retirer?',
       onlyOwnPlayer: 'Tu peux seulement retirer ta propre entrée.',
       teamFull: 'Équipe complète!',
+      matchFixed: 'Match complet — composition prête!',
+      nameTaken: 'Ce nom est déjà pris dans ce match.',
+      alreadyBooked: 'Tu es déjà inscrit à un match ce jour-là.',
+      needLogin: 'Connecte-toi d abord.',
+      needName: 'Entre ton nom.',
+      onlyClaimerOrOrg: 'Seul celui qui a pris le rôle ou organisateur peut libérer.',
+      viewOnly: 'Lecture seule — tu ne joues pas ce match.',
+      cannotEditOthers: 'Tu peux seulement t inscrire ou te retirer.',
+      morePlayers: 'Plus de joueurs recherchés',
       liveSync: '🟢 En direct — tout le monde voit pareil',
       loginTitle: 'Bienvenue sur Takwira',
       loginSubtitle: 'Connecte-toi pour jouer',
@@ -330,13 +388,14 @@ export default function TakwiraApp() {
       rolesClaimedLater: 'تتاخذ في الماتش',
       release: 'تخلي',
       confirmRelease: 'تحب تخلي الدور؟',
+      onlyOrganizerRole: 'كان المنظم برك ينجم يخلي الأدوار.',
       noRoles: 'ما فماش أدوار محددة',
       enterName: 'أدخل اسمك',
       chooseTeam: 'اختر فريقك',
-      teamA: 'الفريق الأحمر',
-      teamB: 'الفريق الأزرق',
-      joinTeamA: '🔴 الفريق الأحمر',
-      joinTeamB: '🔵 الفريق الأزرق',
+      teamA: 'الفريق A',
+      teamB: 'الفريق B',
+      joinTeamA: 'الفريق A',
+      joinTeamB: 'الفريق B',
       backToMatches: '← رجوع',
       editMatch: 'تعديل المباراة',
       edit: '✏️ تعديل',
@@ -352,6 +411,15 @@ export default function TakwiraApp() {
       confirmRemovePlayer: 'تحب تنحيه؟',
       onlyOwnPlayer: 'تنجم تنحي كان الاسم متاعك.',
       teamFull: 'الفريق عامر!',
+      matchFixed: 'الماتش عامر — التشكيلة جاهزة!',
+      nameTaken: 'الاسم موجود في الماتش هذا.',
+      alreadyBooked: 'راك مسجل في ماتش آخر نفس النهار.',
+      needLogin: 'سجل دخول الاول.',
+      needName: 'اكتب اسمك.',
+      onlyClaimerOrOrg: 'اللي اخذ الدور والا المنظم برك ينجم يخليه.',
+      viewOnly: 'مشاهدة برك — راك ماكش في الماتش هذا.',
+      cannotEditOthers: 'تنجم تزيد او تنحي كان روحك.',
+      morePlayers: 'مازلنا نحتاجو لاعبين',
       liveSync: '🟢 مباشر — الكل يشوف نفس الشيء',
       loginTitle: 'مرحبا بيك في تكوير',
       loginSubtitle: 'سجل دخول باش تلعب',
@@ -383,7 +451,7 @@ export default function TakwiraApp() {
   // ============================================
   const createMatch = async () => {
     if (!user || user.isAnonymous) {
-      alert(t.guestNoCreate);
+      showMsg(t.guestNoCreate, 'error');
       return;
     }
     if (
@@ -407,6 +475,10 @@ export default function TakwiraApp() {
       time: '',
       place: '',
       teamSize: 10,
+      teamAName: '',
+      teamBName: '',
+      teamAColor: '#e74c3c',
+      teamBColor: '#2980ef',
       ballResponsible: '',
       bibsResponsible: ''
     });
@@ -414,18 +486,71 @@ export default function TakwiraApp() {
   };
 
   const addPlayer = async (team) => {
-    if (!playerName.trim() || !currentMatch) return;
-    if (!user) return;
-    const key = team === 'A' ? 'teamA' : 'teamB';
-    const list = currentMatch[key] || [];
-    const cap = currentMatch.teamSize || 10;
-    if (list.length >= cap) {
-      alert(t.teamFull);
+    if (!currentMatch) return;
+    if (!user) {
+      showMsg(t.needLogin, 'error');
       return;
     }
-    // Spieler als Objekt speichern: Name + wer ihn eingetragen hat
+    const name = playerName.trim();
+    if (!name) {
+      showMsg(t.needName, 'error');
+      return;
+    }
+    const key = team === 'A' ? 'teamA' : 'teamB';
+    const otherKey = team === 'A' ? 'teamB' : 'teamA';
+    let list = currentMatch[key] || [];
+    let otherList = currentMatch[otherKey] || [];
+    const cap = currentMatch.teamSize || 10;
+
+    // Ist der User schon irgendwo drin?
+    const inThis = list.some((p) => playerUidOf(p) === user.uid);
+    const inOther = otherList.some((p) => playerUidOf(p) === user.uid);
+
+    if (inThis) {
+      showMsg(t.alreadyInTeam, 'info');
+      return;
+    }
+
+    // Team voll → nicht reinlassen
+    if (list.length >= cap) {
+      showMsg(t.teamFull, 'error');
+      return;
+    }
+
+    // Name schon in DIESEM Match vergeben (Groß-/Kleinschreibung egal)?
+    const nameLC = name.toLowerCase();
+    const nameTaken =
+      list.some((p) => (playerNameOf(p) || '').toLowerCase() === nameLC) ||
+      otherList.some((p) => (playerNameOf(p) || '').toLowerCase() === nameLC);
+    if (nameTaken) {
+      showMsg(t.nameTaken, 'error');
+      return;
+    }
+
+    // Ein Match pro Tag pro Nutzer
+    const matchDate = currentMatch.date;
+    if (matchDate) {
+      const alreadyBooked = matches.some((m) => {
+        if (m.id === currentMatch.id) return false;
+        if (m.date !== matchDate) return false;
+        const inA = (m.teamA || []).some((p) => playerUidOf(p) === user.uid);
+        const inB = (m.teamB || []).some((p) => playerUidOf(p) === user.uid);
+        return inA || inB;
+      });
+      if (alreadyBooked) {
+        showMsg(t.alreadyBooked, 'error');
+        return;
+      }
+    }
+
+    // Team wechseln
+    if (inOther) {
+      otherList = otherList.filter((p) => playerUidOf(p) !== user.uid);
+    }
+
     await updateDoc(doc(db, 'matches', currentMatch.id), {
-      [key]: [...list, { name: playerName.trim(), uid: user.uid }]
+      [key]: [...list, { name, uid: user.uid }],
+      [otherKey]: otherList
     });
     setPlayerName('');
   };
@@ -434,14 +559,22 @@ export default function TakwiraApp() {
   const playerNameOf = (p) => (typeof p === 'string' ? p : p.name);
   const playerUidOf = (p) => (typeof p === 'string' ? null : p.uid);
 
+  // Team-Name/Farbe mit Fallback (für alte Spiele ohne diese Felder)
+  const teamNameOf = (m, team) =>
+    (team === 'A' ? m.teamAName : m.teamBName) ||
+    (team === 'A' ? t.teamA : t.teamB);
+  const teamColorOf = (m, team) =>
+    (team === 'A' ? m.teamAColor : m.teamBColor) ||
+    (team === 'A' ? '#e74c3c' : '#2980ef');
+
   // Darf der aktuelle User diesen Spieler entfernen?
-  // Ja, wenn: er ihn selbst eingetragen hat ODER er der Ersteller des Spiels ist
-  // ODER es ein alter Eintrag ohne UID ist (Altlast).
+  // Darf der aktuelle User diesen Spieler entfernen?
+  // Regel: NUR sich selbst. Auch der Organisator darf keine anderen entfernen.
+  // Alte Einträge ohne UID (Altlasten) sind für alle entfernbar.
   const canRemovePlayer = (p) => {
     const uid = playerUidOf(p);
-    if (!uid) return true; // alter String-Eintrag
-    if (user && uid === user.uid) return true; // selbst eingetragen
-    if (user && currentMatch.creatorUid === user.uid) return true; // Ersteller
+    if (!uid) return true; // Altlast
+    if (user && uid === user.uid) return true; // selbst
     return false;
   };
 
@@ -450,7 +583,7 @@ export default function TakwiraApp() {
     const list = currentMatch[key] || [];
     const p = list[index];
     if (!canRemovePlayer(p)) {
-      alert(t.onlyOwnPlayer);
+      showMsg(t.onlyOwnPlayer, 'error');
       return;
     }
     if (!window.confirm(`${playerNameOf(p)} — ${t.confirmRemovePlayer}`)) return;
@@ -464,7 +597,7 @@ export default function TakwiraApp() {
     // Nur der Ersteller darf löschen.
     // Alte Spiele ohne creatorUid darf jeder löschen (Altlasten).
     if (match && match.creatorUid && match.creatorUid !== (user && user.uid)) {
-      alert(t.onlyCreatorDelete);
+      showMsg(t.onlyCreatorDelete, 'error');
       return;
     }
     if (!window.confirm(t.confirmDeleteMatch)) return;
@@ -472,10 +605,6 @@ export default function TakwiraApp() {
     setSelectedMatchId(null);
     setView('matches');
   };
-
-  // Prüft, ob der aktuelle User dieses Spiel löschen darf
-  const canDelete = (match) =>
-    !match.creatorUid || match.creatorUid === (user && user.uid);
 
   const startEditing = () => {
     setEditData({
@@ -500,7 +629,7 @@ export default function TakwiraApp() {
   const copyMatchLink = () => {
     const url = `${window.location.origin}${window.location.pathname}?match=${selectedMatchId}`;
     navigator.clipboard.writeText(url);
-    alert(t.copied);
+    showMsg(t.copied, 'success');
   };
 
   // ============================================
@@ -530,26 +659,42 @@ export default function TakwiraApp() {
     setSelectedMatchId(null);
   };
 
-  // Anzeigename des eingeloggten Users (für vorausgefüllte Felder)
-  const myName =
-    user && !user.isAnonymous && user.displayName
-      ? user.displayName.split(' ')[0]
-      : '';
-
   // Rolle übernehmen (Ball oder Westen) — nur wenn noch frei
   const claimRole = async (roleKey) => {
-    if (!currentMatch) return;
-    if ((currentMatch[roleKey] || '').trim()) return; // schon vergeben
+    if (!currentMatch || !user) return;
+    if (roleValueOf(currentMatch[roleKey])) return; // schon vergeben
     const name = (playerName.trim() || window.prompt(t.enterName) || '').trim();
     if (!name) return;
-    await updateDoc(doc(db, 'matches', currentMatch.id), { [roleKey]: name });
+    await updateDoc(doc(db, 'matches', currentMatch.id), {
+      [roleKey]: { name, uid: user.uid }
+    });
   };
 
-  // Rolle wieder freigeben
+  // Rolle wieder freigeben — Claimer selbst ODER Organisator
   const releaseRole = async (roleKey) => {
-    if (!currentMatch) return;
+    if (!currentMatch || !user) return;
+    const val = currentMatch[roleKey];
+    const uid = roleUidOf(val);
+    const isClaimer = uid && uid === user.uid;
+    const isOrganizer = currentMatch.creatorUid === user.uid;
+    const isOldString = typeof val === 'string'; // Altlast
+    if (!isClaimer && !isOrganizer && !isOldString) {
+      showMsg(t.onlyClaimerOrOrg, 'error');
+      return;
+    }
     if (!window.confirm(t.confirmRelease)) return;
     await updateDoc(doc(db, 'matches', currentMatch.id), { [roleKey]: '' });
+  };
+
+  // Rollen-Helfer: funktioniert für alte Strings UND neue Objekte
+  const roleValueOf = (r) => (typeof r === 'string' ? r.trim() : (r && r.name) || '');
+  const roleUidOf = (r) => (typeof r === 'string' ? null : (r && r.uid) || null);
+  // Claimer ODER Organisator dürfen freigeben
+  const canReleaseRole = (val) => {
+    if (!user || !currentMatch) return false;
+    if (currentMatch.creatorUid === user.uid) return true;
+    const uid = roleUidOf(val);
+    return !!(uid && uid === user.uid);
   };
 
   const sendSuggestion = async () => {
@@ -634,10 +779,32 @@ export default function TakwiraApp() {
     backdropFilter: 'blur(10px)'
   };
 
-  // Ein einzelnes Trikot mit Namen drunter (Stil wie Aufstellungs-Grafik)
-  const Jersey = ({ name, isKeeper, removable, onClick }) => {
-    const fill = isKeeper ? '#f5d020' : '#f4f4f4';
-    const shade = isKeeper ? '#d4b010' : '#d0d0d0';
+  // Hellt/verdunkelt eine Hex-Farbe (percent: +heller / -dunkler)
+  const shadeColor = (hex, percent) => {
+    try {
+      let h = hex.replace('#', '');
+      if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+      const num = parseInt(h, 16);
+      let r = (num >> 16) + percent;
+      let g = ((num >> 8) & 0x00ff) + percent;
+      let b = (num & 0x0000ff) + percent;
+      r = Math.max(0, Math.min(255, r));
+      g = Math.max(0, Math.min(255, g));
+      b = Math.max(0, Math.min(255, b));
+      return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+    } catch {
+      return hex;
+    }
+  };
+
+  // Ein einzelnes Trikot mit Namen drunter (FC-Style, Team-Farbe)
+  const Jersey = ({ name, color, isKeeper, removable, onClick }) => {
+    // Torwart bekommt eine kontrastreiche Farbe (gelb), sonst Team-Farbe
+    const fill = isKeeper ? '#f5d020' : color || '#f4f4f4';
+    const shade = isKeeper ? '#c9a800' : shadeColor(fill, -35);
+    const highlight = shadeColor(fill, 22);
+    const deepShade = shadeColor(fill, -20);
+    const uid = fill.replace('#', '') + (isKeeper ? 'k' : '');
     return (
       <div
         onClick={removable ? onClick : undefined}
@@ -646,28 +813,70 @@ export default function TakwiraApp() {
           flexDirection: 'column',
           alignItems: 'center',
           cursor: removable ? 'pointer' : 'default',
-          width: '70px',
-          userSelect: 'none'
+          width: '92px',
+          userSelect: 'none',
+          transform: 'rotateX(-22deg)',
+          transformOrigin: 'bottom center'
         }}
         title={name}
       >
-        <svg width="46" height="46" viewBox="0 0 100 100" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.35))' }}>
+        <svg width="72" height="80" viewBox="0 0 100 110">
+          <defs>
+            {/* Grundfarbe: leichter Verlauf oben->unten (Volumen) */}
+            <linearGradient id={`base-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={highlight} />
+              <stop offset="55%" stopColor={fill} />
+              <stop offset="100%" stopColor={deepShade} />
+            </linearGradient>
+            {/* Schulter-Glanz oben links */}
+            <radialGradient id={`shL-${uid}`} cx="0.32" cy="0.18" r="0.28">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+              <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+            </radialGradient>
+            {/* Schulter-Glanz oben rechts */}
+            <radialGradient id={`shR-${uid}`} cx="0.68" cy="0.18" r="0.28">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+              <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+            </radialGradient>
+            {/* Brust-Glanz Mitte */}
+            <radialGradient id={`chest-${uid}`} cx="0.5" cy="0.4" r="0.32">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
+              <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+            </radialGradient>
+            {/* Schatten am Bauch/Saum */}
+            <linearGradient id={`hem-${uid}`} x1="0" y1="0.55" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0.25)" />
+            </linearGradient>
+          </defs>
+
+          {/* Bodenschatten unter dem Trikot */}
+          <ellipse cx="50" cy="102" rx="24" ry="4" fill="rgba(0,0,0,0.55)" />
+
           {/* Ärmel */}
           <path d="M30 16 L14 28 L22 44 L34 36 Z" fill={fill} stroke={shade} strokeWidth="1.5" strokeLinejoin="round" />
           <path d="M70 16 L86 28 L78 44 L66 36 Z" fill={fill} stroke={shade} strokeWidth="1.5" strokeLinejoin="round" />
-          {/* Körper */}
-          <path d="M30 16 Q40 22 50 22 Q60 22 70 16 L70 86 Q50 90 30 86 Z" fill={fill} stroke={shade} strokeWidth="1.5" strokeLinejoin="round" />
+
+          {/* Trikot-Körper: Grundfarbe */}
+          <path d="M30 16 Q40 22 50 22 Q60 22 70 16 L70 86 Q50 90 30 86 Z" fill={`url(#base-${uid})`} stroke={shade} strokeWidth="1.5" strokeLinejoin="round" />
+
+          {/* Weiche Highlights auf dem Trikot-Körper */}
+          <path d="M30 16 Q40 22 50 22 Q60 22 70 16 L70 86 Q50 90 30 86 Z" fill={`url(#shL-${uid})`} />
+          <path d="M30 16 Q40 22 50 22 Q60 22 70 16 L70 86 Q50 90 30 86 Z" fill={`url(#shR-${uid})`} />
+          <path d="M30 16 Q40 22 50 22 Q60 22 70 16 L70 86 Q50 90 30 86 Z" fill={`url(#chest-${uid})`} />
+          <path d="M30 16 Q40 22 50 22 Q60 22 70 16 L70 86 Q50 90 30 86 Z" fill={`url(#hem-${uid})`} />
+
           {/* Kragen */}
           <path d="M40 18 Q50 28 60 18" fill="none" stroke={shade} strokeWidth="2.5" />
         </svg>
         <div
           style={{
-            marginTop: '1px',
-            fontSize: '10px',
-            fontWeight: '700',
+            marginTop: '2px',
+            fontSize: '12px',
+            fontWeight: '800',
             color: '#fff',
-            textShadow: '0 1px 3px rgba(0,0,0,0.95)',
-            maxWidth: '70px',
+            textShadow: '0 1px 4px rgba(0,0,0,0.95)',
+            maxWidth: '92px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -681,14 +890,16 @@ export default function TakwiraApp() {
   };
 
   // Eine Mannschaftshälfte: Spieler in Formation aufs Feld verteilt
-  const TeamHalf = ({ players, team, flip }) => {
+  const TeamHalf = ({ players, team, color, flip }) => {
     const formation = buildFormation(players.length);
     // Spieler den Reihen zuordnen
     const rows = [];
     let cursor = 0;
     for (const n of formation) {
-      const start = cursor;
-      rows.push(players.slice(start, start + n).map((p, idx) => ({ player: p, idx: start + idx })));
+      const start = cursor; // fester Wert für dieses Reihen-map
+      rows.push(
+        players.slice(start, start + n).map((p, idx) => ({ player: p, idx: start + idx }))
+      );
       cursor += n;
     }
     const orderedRows = flip ? [...rows].reverse() : rows;
@@ -698,9 +909,9 @@ export default function TakwiraApp() {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-around',
-          gap: '30px',
-          minHeight: '260px',
-          padding: '26px 0'
+          gap: '32px',
+          minHeight: '250px',
+          padding: '24px 0'
         }}
       >
         {orderedRows.map((row, r) => (
@@ -708,15 +919,17 @@ export default function TakwiraApp() {
             key={r}
             style={{
               display: 'flex',
-              justifyContent: 'center',
-              gap: '32px',
-              flexWrap: 'wrap'
+              justifyContent: 'space-evenly',
+              gap: '48px',
+              flexWrap: 'wrap',
+              width: '100%'
             }}
           >
             {row.map((entry) => (
               <Jersey
                 key={entry.idx}
                 name={playerNameOf(entry.player)}
+                color={color}
                 isKeeper={entry.idx === 0}
                 removable={canRemovePlayer(entry.player)}
                 onClick={() => removePlayer(team, entry.idx)}
@@ -1580,6 +1793,44 @@ export default function TakwiraApp() {
               {newMatch.teamSize} vs {newMatch.teamSize}
             </div>
 
+            <label style={labelStyle}>{t.teamsLabel}</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <input
+                    type="color"
+                    value={newMatch.teamAColor}
+                    onChange={(e) => setNewMatch({ ...newMatch, teamAColor: e.target.value })}
+                    style={{ width: '38px', height: '38px', border: 'none', borderRadius: '8px', background: 'none', cursor: 'pointer', padding: 0 }}
+                  />
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{t.teamAShort}</span>
+                </div>
+                <input
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                  value={newMatch.teamAName}
+                  onChange={(e) => setNewMatch({ ...newMatch, teamAName: e.target.value })}
+                  placeholder={t.teamA}
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <input
+                    type="color"
+                    value={newMatch.teamBColor}
+                    onChange={(e) => setNewMatch({ ...newMatch, teamBColor: e.target.value })}
+                    style={{ width: '38px', height: '38px', border: 'none', borderRadius: '8px', background: 'none', cursor: 'pointer', padding: 0 }}
+                  />
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{t.teamBShort}</span>
+                </div>
+                <input
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                  value={newMatch.teamBName}
+                  onChange={(e) => setNewMatch({ ...newMatch, teamBName: e.target.value })}
+                  placeholder={t.teamB}
+                />
+              </div>
+            </div>
+
             <div
               style={{
                 borderTop: '1px dashed rgba(255,255,255,0.2)',
@@ -1786,21 +2037,23 @@ export default function TakwiraApp() {
                           <div style={{ fontSize: '14px', fontWeight: '800', color: '#FFD700', marginBottom: '0.5rem' }}>
                             {taken}
                           </div>
-                          <button
-                            onClick={() => releaseRole(role.key)}
-                            style={{
-                              fontSize: '10px',
-                              padding: '4px 10px',
-                              background: 'transparent',
-                              border: '1px solid rgba(255,255,255,0.3)',
-                              color: 'rgba(255,255,255,0.7)',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              fontWeight: '600'
-                            }}
-                          >
-                            {t.release}
-                          </button>
+                          {canReleaseRole(currentMatch[role.key]) && (
+                            <button
+                              onClick={() => releaseRole(role.key)}
+                              style={{
+                                fontSize: '10px',
+                                padding: '4px 10px',
+                                background: 'transparent',
+                                border: '1px solid rgba(255,255,255,0.3)',
+                                color: 'rgba(255,255,255,0.7)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: '600'
+                              }}
+                            >
+                              {t.release}
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <button
@@ -1829,93 +2082,127 @@ export default function TakwiraApp() {
               </div>
             </div>
 
-            {/* PLATZ — echtes Feld mit Trikots in Formation */}
-            <div
-              style={{
-                position: 'relative',
-                borderRadius: '14px',
-                marginBottom: '1.5rem',
-                overflow: 'hidden',
-                background:
-                  'linear-gradient(180deg, #3a9e3f 0%, #2f8a34 100%)',
-                border: '4px solid #1f6b28'
-              }}
-            >
-              {/* Senkrechte Rasenstreifen */}
+            {/* STATUS-BANNER: voll = fix, sonst mehr Spieler nötig */}
+            {(() => {
+              const cap = currentMatch.teamSize || 10;
+              const aFull = (currentMatch.teamA?.length || 0) >= cap;
+              const bFull = (currentMatch.teamB?.length || 0) >= cap;
+              const ready = aFull && bFull;
+              return (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '12px',
+                    marginBottom: '1.25rem',
+                    borderRadius: '12px',
+                    fontWeight: '800',
+                    fontSize: '14px',
+                    background: ready
+                      ? 'linear-gradient(135deg, rgba(39,174,96,0.25), rgba(30,132,73,0.2))'
+                      : 'rgba(255,255,255,0.06)',
+                    border: ready
+                      ? '2px solid rgba(39,174,96,0.6)'
+                      : '1px dashed rgba(255,255,255,0.25)',
+                    color: ready ? '#7CFC7C' : 'rgba(255,255,255,0.75)'
+                  }}
+                >
+                  {ready ? `✅ ${t.matchFixed}` : `⏳ ${t.morePlayers}`}
+                </div>
+              );
+            })()}
+
+            {/* PLATZ — 3D Feld (FC-Style) mit farbigen Trikots */}
+            <div style={{ perspective: '1100px', marginBottom: '2.5rem' }}>
               <div
                 style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background:
-                    'repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 42px, transparent 42px, transparent 84px)'
-                }}
-              />
-              {/* Feld-Linien */}
-              <svg
-                viewBox="0 0 300 460"
-                preserveAspectRatio="none"
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  opacity: 0.7
+                  position: 'relative',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  background: 'linear-gradient(180deg, #3aa543 0%, #2c8a33 100%)',
+                  border: '4px solid #1f6b28',
+                  transform: 'rotateX(22deg) scale(1.01)',
+                  transformOrigin: 'center top',
+                  boxShadow: '0 30px 45px rgba(0,0,0,0.5)'
                 }}
               >
-                <rect x="8" y="8" width="284" height="444" fill="none" stroke="#fff" strokeWidth="2" />
-                {/* Mittellinie + Kreis */}
-                <line x1="8" y1="230" x2="292" y2="230" stroke="#fff" strokeWidth="2" />
-                <circle cx="150" cy="230" r="42" fill="none" stroke="#fff" strokeWidth="2" />
-                <circle cx="150" cy="230" r="3" fill="#fff" />
-                {/* Strafraum oben */}
-                <rect x="85" y="8" width="130" height="58" fill="none" stroke="#fff" strokeWidth="2" />
-                <rect x="118" y="8" width="64" height="26" fill="none" stroke="#fff" strokeWidth="2" />
-                <path d="M118 66 Q150 86 182 66" fill="none" stroke="#fff" strokeWidth="2" />
-                {/* Strafraum unten */}
-                <rect x="85" y="394" width="130" height="58" fill="none" stroke="#fff" strokeWidth="2" />
-                <rect x="118" y="426" width="64" height="26" fill="none" stroke="#fff" strokeWidth="2" />
-                <path d="M118 394 Q150 374 182 394" fill="none" stroke="#fff" strokeWidth="2" />
-              </svg>
-
-              {/* Inhalt: zwei Hälften */}
-              <div style={{ position: 'relative', padding: '0.5rem' }}>
-                {/* TEAM ROT — obere Hälfte */}
+                {/* Senkrechte Rasenstreifen */}
                 <div
                   style={{
-                    fontSize: '12px',
-                    color: '#fff',
-                    fontWeight: '800',
-                    textTransform: 'uppercase',
-                    textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-                    padding: '4px 8px'
+                    position: 'absolute',
+                    inset: 0,
+                    background:
+                      'repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 46px, transparent 46px, transparent 92px)'
                   }}
-                >
-                  🔴 {t.teamA} — {currentMatch.teamA?.length || 0}/{currentMatch.teamSize || 10}
-                </div>
-                <TeamHalf
-                  players={currentMatch.teamA || []}
-                  team="A"
-                  flip={false}
                 />
+                {/* Feld-Linien */}
+                <svg
+                  viewBox="0 0 300 420"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.75 }}
+                >
+                  <rect x="8" y="8" width="284" height="404" fill="none" stroke="#fff" strokeWidth="2" />
+                  <line x1="8" y1="210" x2="292" y2="210" stroke="#fff" strokeWidth="2" />
+                  <circle cx="150" cy="210" r="38" fill="none" stroke="#fff" strokeWidth="2" />
+                  <circle cx="150" cy="210" r="3" fill="#fff" />
+                  {/* Strafraum oben */}
+                  <rect x="80" y="8" width="140" height="52" fill="none" stroke="#fff" strokeWidth="2" />
+                  <rect x="115" y="8" width="70" height="22" fill="none" stroke="#fff" strokeWidth="2" />
+                  <path d="M115 60 Q150 82 185 60" fill="none" stroke="#fff" strokeWidth="2" />
+                  {/* Strafraum unten */}
+                  <rect x="80" y="360" width="140" height="52" fill="none" stroke="#fff" strokeWidth="2" />
+                  <rect x="115" y="390" width="70" height="22" fill="none" stroke="#fff" strokeWidth="2" />
+                  <path d="M115 360 Q150 338 185 360" fill="none" stroke="#fff" strokeWidth="2" />
+                </svg>
 
-                {/* TEAM BLAU — untere Hälfte (Formation gespiegelt) */}
-                <TeamHalf
-                  players={currentMatch.teamB || []}
-                  team="B"
-                  flip={true}
-                />
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#fff',
-                    fontWeight: '800',
-                    textTransform: 'uppercase',
-                    textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-                    padding: '4px 8px',
-                    textAlign: 'right'
-                  }}
-                >
-                  🔵 {t.teamB} — {currentMatch.teamB?.length || 0}/{currentMatch.teamSize || 10}
+                {/* Inhalt: zwei Hälften */}
+                <div style={{ position: 'relative', padding: '0.5rem' }}>
+                  <div
+                    style={{
+                      display: 'inline-block',
+                      fontSize: '13px',
+                      color: '#fff',
+                      fontWeight: '900',
+                      textTransform: 'uppercase',
+                      textShadow: '0 1px 5px rgba(0,0,0,0.95)',
+                      padding: '5px 12px',
+                      borderRadius: '20px',
+                      background: teamColorOf(currentMatch, 'A'),
+                      margin: '4px'
+                    }}
+                  >
+                    {teamNameOf(currentMatch, 'A')} — {currentMatch.teamA?.length || 0}/{currentMatch.teamSize || 10}
+                  </div>
+                  <TeamHalf
+                    players={currentMatch.teamA || []}
+                    team="A"
+                    color={teamColorOf(currentMatch, 'A')}
+                    flip={false}
+                  />
+
+                  <TeamHalf
+                    players={currentMatch.teamB || []}
+                    team="B"
+                    color={teamColorOf(currentMatch, 'B')}
+                    flip={true}
+                  />
+                  <div style={{ textAlign: 'right' }}>
+                    <div
+                      style={{
+                        display: 'inline-block',
+                        fontSize: '13px',
+                        color: '#fff',
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        textShadow: '0 1px 5px rgba(0,0,0,0.95)',
+                        padding: '5px 12px',
+                        borderRadius: '20px',
+                        background: teamColorOf(currentMatch, 'B'),
+                        margin: '4px'
+                      }}
+                    >
+                      {teamNameOf(currentMatch, 'B')} — {currentMatch.teamB?.length || 0}/{currentMatch.teamSize || 10}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1933,15 +2220,69 @@ export default function TakwiraApp() {
             </div>
 
             {/* SPIELER HINZUFÜGEN */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>{t.enterName}</label>
-              <input style={inputStyle} value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder={t.enterName} />
-              <label style={labelStyle}>{t.chooseTeam}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <button onClick={() => addPlayer('A')} style={{ padding: '14px', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', textTransform: 'uppercase' }}>{t.joinTeamA}</button>
-                <button onClick={() => addPlayer('B')} style={{ padding: '14px', background: 'linear-gradient(135deg, #4dabf7 0%, #1e88e5 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', textTransform: 'uppercase' }}>{t.joinTeamB}</button>
-              </div>
-            </div>
+            {(() => {
+              const cap = currentMatch.teamSize || 10;
+              const aCount = currentMatch.teamA?.length || 0;
+              const bCount = currentMatch.teamB?.length || 0;
+              const aFull = aCount >= cap;
+              const bFull = bCount >= cap;
+              const colorA = teamColorOf(currentMatch, 'A');
+              const colorB = teamColorOf(currentMatch, 'B');
+              return (
+                <div style={cardStyle}>
+                  <label style={labelStyle}>{t.enterName}</label>
+                  <input
+                    style={inputStyle}
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder={t.enterName}
+                  />
+                  <label style={labelStyle}>{t.chooseTeam}</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <button
+                      onClick={() => addPlayer('A')}
+                      disabled={aFull}
+                      style={{
+                        padding: '14px',
+                        background: aFull
+                          ? 'rgba(255,255,255,0.1)'
+                          : `linear-gradient(135deg, ${shadeColor(colorA, 20)} 0%, ${colorA} 100%)`,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        cursor: aFull ? 'not-allowed' : 'pointer',
+                        textTransform: 'uppercase',
+                        opacity: aFull ? 0.5 : 1
+                      }}
+                    >
+                      {teamNameOf(currentMatch, 'A')} ({aCount}/{cap})
+                    </button>
+                    <button
+                      onClick={() => addPlayer('B')}
+                      disabled={bFull}
+                      style={{
+                        padding: '14px',
+                        background: bFull
+                          ? 'rgba(255,255,255,0.1)'
+                          : `linear-gradient(135deg, ${shadeColor(colorB, 20)} 0%, ${colorB} 100%)`,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        cursor: bFull ? 'not-allowed' : 'pointer',
+                        textTransform: 'uppercase',
+                        opacity: bFull ? 0.5 : 1
+                      }}
+                    >
+                      {teamNameOf(currentMatch, 'B')} ({bCount}/{cap})
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {(() => {
               const isCreator =
@@ -1961,10 +2302,88 @@ export default function TakwiraApp() {
       </div>
       )}
 
+      {/* ============ MODAL: zentrale Meldung ============ */}
+      {modalMsg && (
+        <div
+          onClick={() => setModalMsg(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+            animation: 'fadeIn 0.15s ease-out'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '380px',
+              width: '100%',
+              padding: '1.75rem 1.5rem',
+              borderRadius: '16px',
+              background: 'rgba(20, 30, 50, 0.98)',
+              border: `2px solid ${
+                modalMsg.kind === 'error'
+                  ? 'rgba(231, 76, 60, 0.7)'
+                  : modalMsg.kind === 'success'
+                  ? 'rgba(39, 174, 96, 0.7)'
+                  : 'rgba(52, 152, 219, 0.6)'
+              }`,
+              textAlign: 'center',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+              animation: 'popIn 0.2s ease-out'
+            }}
+          >
+            <div style={{ fontSize: '36px', marginBottom: '0.75rem' }}>
+              {modalMsg.kind === 'error' ? '⚠️' : modalMsg.kind === 'success' ? '✅' : 'ℹ️'}
+            </div>
+            <div
+              style={{
+                fontSize: '15px',
+                color: '#fff',
+                fontWeight: '600',
+                lineHeight: '1.5',
+                marginBottom: '1.5rem'
+              }}
+            >
+              {modalMsg.text}
+            </div>
+            <button
+              onClick={() => setModalMsg(null)}
+              style={{
+                padding: '10px 28px',
+                background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes popIn {
+          from { opacity: 0; transform: scale(0.85); }
+          to { opacity: 1; transform: scale(1); }
         }
         input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.4); }
         input, textarea { outline: none; font-family: inherit; }
