@@ -1,31 +1,52 @@
+ /* Base Layout & Theme */
 .App {
   text-align: center;
+  background-color: #1a120c; /* Warm dark sunset background */
+  color: #f7e7d0; /* Soft warm sand text */
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Header Section */
+.App-header {
+  background: linear-gradient(180deg, #da6918 0%, #2a1810 100%);
+  padding: 3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 2px solid #d97736;
+}
+
+.App-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  color: #f3a661; /* Warm sunset orange */
+  text-shadow: 0 2px 10px rgba(243, 166, 97, 0.2);
+}
+
+.App-link {
+  color: #3b82a6; /* Mediterranean coastal blue */
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.App-link:hover {
+  color: #f3a661;
+}
+
+/* Logo Animation */
 .App-logo {
-  height: 40vmin;
+  height: 20vmin;
   pointer-events: none;
+  margin-bottom: 1.5rem;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
     animation: App-logo-spin infinite 20s linear;
   }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
 }
 
 @keyframes App-logo-spin {
@@ -35,4 +56,56 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+---
+
+/* Gallery Section */
+.gallery-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.gallery-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #261b14;
+  border: 1px solid rgba(243, 166, 97, 0.15);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.gallery-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 30px rgba(217, 119, 54, 0.2);
+  border-color: #d97736;
+}
+
+.gallery-card img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s ease;
+}
+
+.gallery-card:hover img {
+  transform: scale(1.05);
+}
+
+/* Optional Overlay Caption */
+.gallery-caption {
+  padding: 1rem;
+  background: rgba(26, 18, 12, 0.9);
+  color: #f7e7d0;
+  font-size: 0.95rem;
+  text-align: left;
 }
