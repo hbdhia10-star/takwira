@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from './firebase';
+import { db, auth, googleProvider } from './firebase';
 import {
   collection,
   onSnapshot,
@@ -8,9 +8,17 @@ import {
   deleteDoc,
   doc
 } from 'firebase/firestore';
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signInAnonymously,
+  signOut
+} from 'firebase/auth';
 import { RULES, RULES_FOOTER } from './rules';
 
 export default function TakwiraApp() {
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [language, setLanguage] = useState('de');
   const [view, setView] = useState('matches');
   const [playerName, setPlayerName] = useState('');
@@ -36,6 +44,20 @@ export default function TakwiraApp() {
   });
 
   // ============================================
+  //  FIREBASE: Login-Status beobachten
+  // ============================================
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthReady(true);
+      if (u && !u.isAnonymous && u.displayName) {
+        setPlayerName((prev) => prev || u.displayName.split(' ')[0]);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // ============================================
   //  FIREBASE: Live-Verbindung — Spiele
   // ============================================
   useEffect(() => {
@@ -43,8 +65,20 @@ export default function TakwiraApp() {
       collection(db, 'matches'),
       (snapshot) => {
         const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        list.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-        setMatches(list);
+
+        // Vergangene Spiele automatisch löschen (Datum vor heute).
+        // Datum ist im Format YYYY-MM-DD, heute ebenso -> String-Vergleich reicht.
+        const today = new Date().toISOString().slice(0, 10);
+        const expired = list.filter((m) => m.date && m.date < today);
+        expired.forEach((m) => {
+          deleteDoc(doc(db, 'matches', m.id)).catch((e) =>
+            console.error('Auto-Löschen fehlgeschlagen:', e)
+          );
+        });
+
+        const current = list.filter((m) => !m.date || m.date >= today);
+        current.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        setMatches(current);
         setLoading(false);
       },
       (err) => {
@@ -123,6 +157,14 @@ export default function TakwiraApp() {
       confirmRemovePlayer: 'wirklich entfernen?',
       teamFull: 'Team ist voll!',
       liveSync: '🟢 Live — alle sehen dasselbe',
+      loginTitle: 'Willkommen bei Takwira',
+      loginSubtitle: 'Melde dich an, um mitzuspielen',
+      loginGoogle: 'Mit Google anmelden',
+      loginAnon: 'Als Gast weitermachen',
+      logout: 'Abmelden',
+      guestNoCreate: 'Als Gast kannst du keine Spiele erstellen. Melde dich mit Google an.',
+      onlyCreatorDelete: 'Nur wer das Spiel erstellt hat, darf es löschen.',
+      loginNote: 'Gast-Login: du bist dabei, aber ohne Namen aus Google.',
       rulesTitle: '📜 Die Regeln',
       rulesSubtitle: 'Wer in der Gruppe ist, hat die Regeln akzeptiert. 👑',
       ideasTitle: '💡 Verbessere die App',
@@ -179,6 +221,14 @@ export default function TakwiraApp() {
       confirmRemovePlayer: 'really remove?',
       teamFull: 'Team is full!',
       liveSync: '🟢 Live — everyone sees the same',
+      loginTitle: 'Welcome to Takwira',
+      loginSubtitle: 'Sign in to join the game',
+      loginGoogle: 'Sign in with Google',
+      loginAnon: 'Continue as guest',
+      logout: 'Sign out',
+      guestNoCreate: 'Guests cannot create matches. Sign in with Google.',
+      onlyCreatorDelete: 'Only the creator can delete this match.',
+      loginNote: 'Guest login: you are in, but without your Google name.',
       rulesTitle: '📜 The Rules',
       rulesSubtitle: 'If you are in the group, you accepted the rules. 👑',
       ideasTitle: '💡 Improve the App',
@@ -235,6 +285,14 @@ export default function TakwiraApp() {
       confirmRemovePlayer: 'vraiment retirer?',
       teamFull: 'Équipe complète!',
       liveSync: '🟢 En direct — tout le monde voit pareil',
+      loginTitle: 'Bienvenue sur Takwira',
+      loginSubtitle: 'Connecte-toi pour jouer',
+      loginGoogle: 'Se connecter avec Google',
+      loginAnon: 'Continuer en invité',
+      logout: 'Déconnexion',
+      guestNoCreate: 'Les invités ne peuvent pas créer de matchs. Connecte-toi avec Google.',
+      onlyCreatorDelete: 'Seul le créateur peut supprimer ce match.',
+      loginNote: 'Invité: tu es là, mais sans ton nom Google.',
       rulesTitle: '📜 Les Règles',
       rulesSubtitle: 'Si tu es dans le groupe, tu as accepté les règles. 👑',
       ideasTitle: '💡 Améliore l\'App',
@@ -291,6 +349,14 @@ export default function TakwiraApp() {
       confirmRemovePlayer: 'تحب تنحيه؟',
       teamFull: 'الفريق عامر!',
       liveSync: '🟢 مباشر — الكل يشوف نفس الشيء',
+      loginTitle: 'مرحبا بيك في تكوير',
+      loginSubtitle: 'سجل دخول باش تلعب',
+      loginGoogle: 'دخول بـ Google',
+      loginAnon: 'كمل كضيف',
+      logout: 'خروج',
+      guestNoCreate: 'كضيف ما تنجمش تعمل ماتشات. سجل دخول بـ Google.',
+      onlyCreatorDelete: 'الي عمل الماتش برك ينجم يمسحو.',
+      loginNote: 'دخول كضيف: راك معانا، أما بلا اسم من Google.',
       rulesTitle: '📜 القوانين',
       rulesSubtitle: 'اللي في الغروب راهو قبل بالقوانين. 👑',
       ideasTitle: '💡 حسّن الأبليكاسيون',
@@ -312,6 +378,10 @@ export default function TakwiraApp() {
   //  FIREBASE FUNKTIONEN
   // ============================================
   const createMatch = async () => {
+    if (!user || user.isAnonymous) {
+      alert(t.guestNoCreate);
+      return;
+    }
     if (
       !newMatch.organizer.trim() ||
       !newMatch.opponent.trim() ||
@@ -323,6 +393,7 @@ export default function TakwiraApp() {
       ...newMatch,
       teamA: [],
       teamB: [],
+      creatorUid: user ? user.uid : null,
       createdAt: Date.now()
     });
     setNewMatch({
@@ -363,11 +434,22 @@ export default function TakwiraApp() {
   };
 
   const deleteMatch = async (id) => {
+    const match = matches.find((m) => m.id === id);
+    // Nur der Ersteller darf löschen.
+    // Alte Spiele ohne creatorUid darf jeder löschen (Altlasten).
+    if (match && match.creatorUid && match.creatorUid !== (user && user.uid)) {
+      alert(t.onlyCreatorDelete);
+      return;
+    }
     if (!window.confirm(t.confirmDeleteMatch)) return;
     await deleteDoc(doc(db, 'matches', id));
     setSelectedMatchId(null);
     setView('matches');
   };
+
+  // Prüft, ob der aktuelle User dieses Spiel löschen darf
+  const canDelete = (match) =>
+    !match.creatorUid || match.creatorUid === (user && user.uid);
 
   const startEditing = () => {
     setEditData({
@@ -394,6 +476,39 @@ export default function TakwiraApp() {
     navigator.clipboard.writeText(url);
     alert(t.copied);
   };
+
+  // ============================================
+  //  LOGIN / LOGOUT
+  // ============================================
+  const loginGoogle = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e) {
+      console.error('Google Login Fehler:', e);
+      alert('Login fehlgeschlagen: ' + e.message);
+    }
+  };
+
+  const loginAnonymous = async () => {
+    try {
+      await signInAnonymously(auth);
+    } catch (e) {
+      console.error('Anonym Login Fehler:', e);
+      alert('Login fehlgeschlagen: ' + e.message);
+    }
+  };
+
+  const logout = async () => {
+    await signOut(auth);
+    setView('matches');
+    setSelectedMatchId(null);
+  };
+
+  // Anzeigename des eingeloggten Users (für vorausgefüllte Felder)
+  const myName =
+    user && !user.isAnonymous && user.displayName
+      ? user.displayName.split(' ')[0]
+      : '';
 
   // Rolle übernehmen (Ball oder Westen) — nur wenn noch frei
   const claimRole = async (roleKey) => {
@@ -630,6 +745,119 @@ export default function TakwiraApp() {
             'linear-gradient(180deg, rgba(15,23,42,0.82) 0%, rgba(10,15,30,0.9) 100%)'
         }}
       />
+
+      {/* ================= LOGIN-GATE ================= */}
+      {!authReady ? (
+        <div style={{ textAlign: 'center', paddingTop: '30vh', color: 'rgba(255,255,255,0.6)' }}>
+          ⏳
+        </div>
+      ) : !user ? (
+        <div style={{ maxWidth: '420px', margin: '0 auto', paddingTop: '12vh' }}>
+          {/* Sprache */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {[
+              { code: 'de', label: 'Deutsch' },
+              { code: 'en', label: 'English' },
+              { code: 'fr', label: 'Français' },
+              { code: 'ar', label: 'العربية' }
+            ].map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => setLanguage(lang.code)}
+                style={{
+                  padding: '8px 14px',
+                  background: language === lang.code ? 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)' : 'rgba(255,255,255,0.1)',
+                  color: '#fff',
+                  border: language === lang.code ? 'none' : '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang.label}
+              </button>
+            ))}
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '20px',
+              padding: '2.5rem 1.75rem',
+              textAlign: 'center'
+            }}
+          >
+            <div style={{ fontSize: '56px', animation: 'bounce 2s infinite' }}>⚽</div>
+            <h1
+              style={{
+                fontSize: '32px',
+                fontWeight: '900',
+                margin: '0.5rem 0',
+                background: 'linear-gradient(135deg, #3498db 0%, #e74c3c 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              {t.loginTitle}
+            </h1>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)', marginBottom: '2rem' }}>
+              {t.loginSubtitle}
+            </p>
+
+            <button
+              onClick={loginGoogle}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.5 2.5 30.1 0 24 0 14.6 0 6.4 5.4 2.6 13.2l7.9 6.1C12.4 13.2 17.7 9.5 24 9.5z" />
+                <path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.1 5.3-4.6 7l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16.5z" />
+                <path fill="#FBBC05" d="M10.5 28.3c-.5-1.4-.7-2.9-.7-4.3s.3-2.9.7-4.3l-7.9-6.1C1 16.7 0 20.2 0 24s1 7.3 2.6 10.4l7.9-6.1z" />
+                <path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.5l-7.1-5.5c-2 1.3-4.5 2.1-7.9 2.1-6.3 0-11.6-3.7-13.5-9.1l-7.9 6.1C6.4 42.6 14.6 48 24 48z" />
+              </svg>
+              {t.loginGoogle}
+            </button>
+
+            <button
+              onClick={loginAnonymous}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'rgba(255,255,255,0.1)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.25)',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              👤 {t.loginAnon}
+            </button>
+
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '1.5rem', lineHeight: '1.5' }}>
+              {t.loginNote}
+            </p>
+          </div>
+        </div>
+      ) : (
       <div style={{ maxWidth: '650px', margin: '0 auto' }}>
         {/* SPRACHE */}
         <div
@@ -715,6 +943,49 @@ export default function TakwiraApp() {
           ))}
         </div>
 
+        {/* USER + LOGOUT */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1.5rem',
+            padding: '8px 14px',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '10px',
+            fontSize: '12px'
+          }}
+        >
+          <span style={{ color: 'rgba(255,255,255,0.75)' }}>
+            {user && !user.isAnonymous && user.photoURL && (
+              <img
+                src={user.photoURL}
+                alt=""
+                style={{ width: '20px', height: '20px', borderRadius: '50%', verticalAlign: 'middle', marginRight: '6px' }}
+              />
+            )}
+            {user && user.isAnonymous
+              ? '👤 ' + (language === 'de' ? 'Gast' : language === 'fr' ? 'Invité' : language === 'ar' ? 'ضيف' : 'Guest')
+              : (user && (user.displayName || user.email)) || ''}
+          </span>
+          <button
+            onClick={logout}
+            style={{
+              padding: '5px 12px',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.25)',
+              color: 'rgba(255,255,255,0.7)',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            {t.logout}
+          </button>
+        </div>
+
         {/* HEADER mit Foto (nur auf Spiele-Seite) */}
         {view === 'matches' && (
           <div
@@ -793,26 +1064,43 @@ export default function TakwiraApp() {
         {/* ================= SPIELE LISTE ================= */}
         {!loading && view === 'matches' && (
           <div>
-            <button
-              onClick={() => setView('create')}
-              style={{
-                width: '100%',
-                padding: '14px',
-                background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '15px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                marginBottom: '2rem',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                boxShadow: '0 8px 25px rgba(231, 76, 60, 0.3)'
-              }}
-            >
-              {t.createMatch}
-            </button>
+            {user && !user.isAnonymous ? (
+              <button
+                onClick={() => setView('create')}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  marginBottom: '2rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  boxShadow: '0 8px 25px rgba(231, 76, 60, 0.3)'
+                }}
+              >
+                {t.createMatch}
+              </button>
+            ) : (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  marginBottom: '2rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px dashed rgba(255,255,255,0.2)',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  color: 'rgba(255,255,255,0.6)',
+                  textAlign: 'center'
+                }}
+              >
+                🔒 {t.guestNoCreate}
+              </div>
+            )}
 
             {matches.length === 0 ? (
               <div
@@ -1379,22 +1667,24 @@ export default function TakwiraApp() {
                       <br />📍 {currentMatch.place}
                     </div>
                   </div>
-                  <button
-                    onClick={startEditing}
-                    style={{
-                      padding: '8px 12px',
-                      background: 'rgba(52, 152, 219, 0.4)',
-                      border: '2px solid rgba(52, 152, 219, 0.7)',
-                      color: '#fff',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {t.edit}
-                  </button>
+                  {(!currentMatch.creatorUid || (user && currentMatch.creatorUid === user.uid)) && (
+                    <button
+                      onClick={startEditing}
+                      style={{
+                        padding: '8px 12px',
+                        background: 'rgba(52, 152, 219, 0.4)',
+                        border: '2px solid rgba(52, 152, 219, 0.7)',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {t.edit}
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1625,13 +1915,23 @@ export default function TakwiraApp() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <button onClick={copyMatchLink} style={{ padding: '12px', background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>{t.copyLink}</button>
-              <button onClick={() => deleteMatch(currentMatch.id)} style={{ padding: '12px', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255, 99, 71, 0.4)', color: '#ff6347', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>{t.delete}</button>
-            </div>
+            {(() => {
+              const isCreator =
+                !currentMatch.creatorUid ||
+                (user && currentMatch.creatorUid === user.uid);
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: isCreator ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                  <button onClick={copyMatchLink} style={{ padding: '12px', background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>{t.copyLink}</button>
+                  {isCreator && (
+                    <button onClick={() => deleteMatch(currentMatch.id)} style={{ padding: '12px', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255, 99, 71, 0.4)', color: '#ff6347', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>{t.delete}</button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
+      )}
 
       <style>{`
         @keyframes bounce {
