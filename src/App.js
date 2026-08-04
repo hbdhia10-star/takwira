@@ -685,13 +685,10 @@ export default function TakwiraApp() {
     const formation = buildFormation(players.length);
     // Spieler den Reihen zuordnen
     const rows = [];
-    let cursor = 0;
+    let i = 0;
     for (const n of formation) {
-      const start = cursor; // fester Wert für dieses Reihen-map
-      rows.push(
-        players.slice(start, start + n).map((p, idx) => ({ player: p, idx: start + idx }))
-      );
-      cursor += n;
+      rows.push(players.slice(i, i + n).map((p, idx) => ({ player: p, idx: i + idx })));
+      i += n;
     }
     const orderedRows = flip ? [...rows].reverse() : rows;
     return (
