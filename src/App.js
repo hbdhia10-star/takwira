@@ -155,6 +155,7 @@ export default function TakwiraApp() {
       loading: 'Lade Spiele...',
       confirmDeleteMatch: 'Dieses Spiel wirklich löschen?',
       confirmRemovePlayer: 'wirklich entfernen?',
+      onlyOwnPlayer: 'Du kannst nur deinen eigenen Eintrag entfernen.',
       teamFull: 'Team ist voll!',
       liveSync: '🟢 Live — alle sehen dasselbe',
       loginTitle: 'Willkommen bei Takwira',
@@ -219,6 +220,7 @@ export default function TakwiraApp() {
       loading: 'Loading matches...',
       confirmDeleteMatch: 'Really delete this match?',
       confirmRemovePlayer: 'really remove?',
+      onlyOwnPlayer: 'You can only remove your own entry.',
       teamFull: 'Team is full!',
       liveSync: '🟢 Live — everyone sees the same',
       loginTitle: 'Welcome to Takwira',
@@ -283,6 +285,7 @@ export default function TakwiraApp() {
       loading: 'Chargement des matchs...',
       confirmDeleteMatch: 'Vraiment supprimer ce match?',
       confirmRemovePlayer: 'vraiment retirer?',
+      onlyOwnPlayer: 'Tu peux seulement retirer ta propre entrée.',
       teamFull: 'Équipe complète!',
       liveSync: '🟢 En direct — tout le monde voit pareil',
       loginTitle: 'Bienvenue sur Takwira',
@@ -347,6 +350,7 @@ export default function TakwiraApp() {
       loading: 'جاري تحميل المباريات...',
       confirmDeleteMatch: 'تحب تمسح الماتش هذا؟',
       confirmRemovePlayer: 'تحب تنحيه؟',
+      onlyOwnPlayer: 'تنجم تنحي كان الاسم متاعك.',
       teamFull: 'الفريق عامر!',
       liveSync: '🟢 مباشر — الكل يشوف نفس الشيء',
       loginTitle: 'مرحبا بيك في تكوير',
@@ -411,6 +415,7 @@ export default function TakwiraApp() {
 
   const addPlayer = async (team) => {
     if (!playerName.trim() || !currentMatch) return;
+    if (!user) return;
     const key = team === 'A' ? 'teamA' : 'teamB';
     const list = currentMatch[key] || [];
     const cap = currentMatch.teamSize || 10;
@@ -418,16 +423,37 @@ export default function TakwiraApp() {
       alert(t.teamFull);
       return;
     }
+    // Spieler als Objekt speichern: Name + wer ihn eingetragen hat
     await updateDoc(doc(db, 'matches', currentMatch.id), {
-      [key]: [...list, playerName.trim()]
+      [key]: [...list, { name: playerName.trim(), uid: user.uid }]
     });
     setPlayerName('');
+  };
+
+  // Name/UID lesen — funktioniert für alte Strings UND neue Objekte
+  const playerNameOf = (p) => (typeof p === 'string' ? p : p.name);
+  const playerUidOf = (p) => (typeof p === 'string' ? null : p.uid);
+
+  // Darf der aktuelle User diesen Spieler entfernen?
+  // Ja, wenn: er ihn selbst eingetragen hat ODER er der Ersteller des Spiels ist
+  // ODER es ein alter Eintrag ohne UID ist (Altlast).
+  const canRemovePlayer = (p) => {
+    const uid = playerUidOf(p);
+    if (!uid) return true; // alter String-Eintrag
+    if (user && uid === user.uid) return true; // selbst eingetragen
+    if (user && currentMatch.creatorUid === user.uid) return true; // Ersteller
+    return false;
   };
 
   const removePlayer = async (team, index) => {
     const key = team === 'A' ? 'teamA' : 'teamB';
     const list = currentMatch[key] || [];
-    if (!window.confirm(`${list[index]} — ${t.confirmRemovePlayer}`)) return;
+    const p = list[index];
+    if (!canRemovePlayer(p)) {
+      alert(t.onlyOwnPlayer);
+      return;
+    }
+    if (!window.confirm(`${playerNameOf(p)} — ${t.confirmRemovePlayer}`)) return;
     await updateDoc(doc(db, 'matches', currentMatch.id), {
       [key]: list.filter((_, i) => i !== index)
     });
@@ -609,17 +635,17 @@ export default function TakwiraApp() {
   };
 
   // Ein einzelnes Trikot mit Namen drunter (Stil wie Aufstellungs-Grafik)
-  const Jersey = ({ name, isKeeper, onClick }) => {
+  const Jersey = ({ name, isKeeper, removable, onClick }) => {
     const fill = isKeeper ? '#f5d020' : '#f4f4f4';
     const shade = isKeeper ? '#d4b010' : '#d0d0d0';
     return (
       <div
-        onClick={onClick}
+        onClick={removable ? onClick : undefined}
         style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          cursor: 'pointer',
+          cursor: removable ? 'pointer' : 'default',
           width: '70px',
           userSelect: 'none'
         }}
@@ -648,7 +674,7 @@ export default function TakwiraApp() {
             textAlign: 'center'
           }}
         >
-          {name} <span style={{ color: '#ff8a8a' }}>✕</span>
+          {name}{removable && <span style={{ color: '#ff8a8a' }}> ✕</span>}
         </div>
       </div>
     );
@@ -659,10 +685,13 @@ export default function TakwiraApp() {
     const formation = buildFormation(players.length);
     // Spieler den Reihen zuordnen
     const rows = [];
-    let i = 0;
+    let cursor = 0;
     for (const n of formation) {
-      rows.push(players.slice(i, i + n).map((name, idx) => ({ name, idx: i + idx })));
-      i += n;
+      const start = cursor; // fester Wert für dieses Reihen-map
+      rows.push(
+        players.slice(start, start + n).map((p, idx) => ({ player: p, idx: start + idx }))
+      );
+      cursor += n;
     }
     const orderedRows = flip ? [...rows].reverse() : rows;
     return (
@@ -686,12 +715,13 @@ export default function TakwiraApp() {
               flexWrap: 'wrap'
             }}
           >
-            {row.map((p) => (
+            {row.map((entry) => (
               <Jersey
-                key={p.idx}
-                name={p.name}
-                isKeeper={p.idx === 0}
-                onClick={() => removePlayer(team, p.idx)}
+                key={entry.idx}
+                name={playerNameOf(entry.player)}
+                isKeeper={entry.idx === 0}
+                removable={canRemovePlayer(entry.player)}
+                onClick={() => removePlayer(team, entry.idx)}
               />
             ))}
           </div>
@@ -1901,7 +1931,7 @@ export default function TakwiraApp() {
                 marginBottom: '1.5rem'
               }}
             >
-              👕 {language === 'de' ? 'Tippe auf ein Trikot zum Entfernen' : language === 'fr' ? 'Tape sur un maillot pour retirer' : language === 'ar' ? 'انقر على القميص للحذف' : 'Tap a jersey to remove'}
+              👕 {language === 'de' ? 'Tippe auf dein Trikot zum Entfernen' : language === 'fr' ? 'Tape sur ton maillot pour te retirer' : language === 'ar' ? 'انقر على قميصك للحذف' : 'Tap your own jersey to remove yourself'}
             </div>
 
             {/* SPIELER HINZUFÜGEN */}
