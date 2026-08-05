@@ -613,8 +613,8 @@ export default function TakwiraApp() {
       date: currentMatch.date || '',
       time: currentMatch.time || '',
       place: currentMatch.place || '',
-      ballResponsible: currentMatch.ballResponsible || '',
-      bibsResponsible: currentMatch.bibsResponsible || ''
+      ballResponsible: roleName(currentMatch.ballResponsible),
+      bibsResponsible: roleName(currentMatch.bibsResponsible)
     });
     setIsEditing(true);
   };
@@ -710,7 +710,13 @@ export default function TakwiraApp() {
     setTimeout(() => setSuggestionSent(false), 4000);
   };
 
-  const hasRoles = (m) => (m.ballResponsible || '').trim() || (m.bibsResponsible || '').trim();
+  // Rolle kann String (alt) oder Objekt {name, uid} (neu) sein — beides erkennen
+  const roleName = (r) => {
+    if (!r) return '';
+    if (typeof r === 'string') return r.trim();
+    return (r.name || '').trim();
+  };
+  const hasRoles = (m) => !!(roleName(m.ballResponsible) || roleName(m.bibsResponsible));
 
   // Verteilt N Spieler auf Reihen (Torwart + Feldreihen), egal wie viele.
   // 1 -> [1] | 5 -> [1,2,2] | 8 -> [1,3,3,1] | 10 -> [1,4,3,2] | 11 -> [1,4,4,2]
@@ -1436,9 +1442,9 @@ export default function TakwiraApp() {
                         marginBottom: '0.75rem'
                       }}
                     >
-                      {match.ballResponsible && `⚽ ${match.ballResponsible}`}
-                      {match.ballResponsible && match.bibsResponsible && '  •  '}
-                      {match.bibsResponsible && `🟡 ${match.bibsResponsible}`}
+                      {roleName(match.ballResponsible) && `⚽ ${roleName(match.ballResponsible)}`}
+                      {roleName(match.ballResponsible) && roleName(match.bibsResponsible) && '  •  '}
+                      {roleName(match.bibsResponsible) && `🟡 ${roleName(match.bibsResponsible)}`}
                     </div>
                   )}
 
@@ -2017,7 +2023,7 @@ export default function TakwiraApp() {
                   { key: 'ballResponsible', label: t.ballShort },
                   { key: 'bibsResponsible', label: t.bibsShort }
                 ].map((role) => {
-                  const taken = (currentMatch[role.key] || '').trim();
+                  const taken = roleName(currentMatch[role.key]);
                   return (
                     <div
                       key={role.key}
