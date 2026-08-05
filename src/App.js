@@ -1259,9 +1259,60 @@ export default function TakwiraApp() {
             >
               {t.loginTitle}
             </h1>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)', marginBottom: '2rem' }}>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)', marginBottom: '1.25rem' }}>
               {t.loginSubtitle}
             </p>
+
+            {/* Signatur — Takwira gemacht von ضياء */}
+            <div
+              style={{
+                margin: '0 auto 2rem',
+                padding: '14px 16px',
+                display: 'inline-block',
+                borderTop: '1px solid rgba(255, 215, 0, 0.25)',
+                borderBottom: '1px solid rgba(255, 215, 0, 0.25)'
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: '"Aref Ruqaa", "Reem Kufi", serif',
+                  fontSize: '32px',
+                  fontWeight: '700',
+                  color: '#FFD700',
+                  letterSpacing: '2px',
+                  textShadow: '0 2px 8px rgba(255, 215, 0, 0.25)',
+                  lineHeight: '1.1'
+                }}
+                dir="ltr"
+              >
+                Takwira
+              </div>
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: 'rgba(255, 255, 255, 0.55)',
+                  fontStyle: 'italic',
+                  marginTop: '4px',
+                  letterSpacing: '1px'
+                }}
+              >
+                made by{' '}
+                <span
+                  dir="rtl"
+                  style={{
+                    fontFamily: '"Aref Ruqaa", "Amiri", serif',
+                    fontSize: '18px',
+                    fontStyle: 'normal',
+                    color: '#FFD700',
+                    fontWeight: '700',
+                    marginLeft: '4px',
+                    verticalAlign: 'middle'
+                  }}
+                >
+                  ضياء
+                </span>
+              </div>
+            </div>
 
             <button
               onClick={loginGoogle}
@@ -2647,6 +2698,7 @@ export default function TakwiraApp() {
       )}
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Amiri:wght@400;700&display=swap');
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
