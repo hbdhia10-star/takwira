@@ -32,6 +32,7 @@ export default function TakwiraApp() {
   const [suggestionName, setSuggestionName] = useState('');
   const [suggestionSent, setSuggestionSent] = useState(false);
   const [modalMsg, setModalMsg] = useState(null); // {kind:'info'|'error'|'success', text}
+  const [saving, setSaving] = useState(false); // verhindert Doppelklick / doppeltes Senden
 
   // Zentrale Meldung in der Mitte des Bildschirms anzeigen
   const showMsg = (text, kind = 'info') => setModalMsg({ text, kind });
@@ -187,6 +188,20 @@ export default function TakwiraApp() {
       onlyOwnPlayer: 'Du kannst nur deinen eigenen Eintrag entfernen.',
       teamFull: 'Team ist voll!',
       matchFixed: 'Match ist voll — Aufstellung steht!',
+      needTitle: 'Bitte einen Spielnamen angeben.',
+      needDate: 'Bitte ein Datum wählen.',
+      needPlace: 'Bitte einen Ort angeben.',
+      dateInPast: 'Das Datum darf nicht in der Vergangenheit liegen.',
+      teamSizeRange: 'Spieler pro Team muss zwischen 2 und 30 liegen.',
+      teamSizeTooLow: 'Kann nicht kleiner sein als die Zahl bereits eingetragener Spieler.',
+      confirmCancel: 'Match wirklich absagen? Es bleibt sichtbar aber gesperrt.',
+      matchCancelled: 'Match wurde abgesagt.',
+      matchLocked: 'Dieses Match ist abgesagt und gesperrt.',
+      statusOpen: 'Offen',
+      statusFull: 'Voll',
+      statusCancelled: 'Abgesagt',
+      cancelMatch: '🚫 Match absagen',
+      reopenMatch: '↺ Wieder öffnen',
       nameTaken: 'Name ist in diesem Match schon vergeben.',
       alreadyBooked: 'Du bist an dem Tag schon für ein Spiel angemeldet.',
       needLogin: 'Bitte zuerst anmelden.',
@@ -262,6 +277,20 @@ export default function TakwiraApp() {
       onlyOwnPlayer: 'You can only remove your own entry.',
       teamFull: 'Team is full!',
       matchFixed: 'Match full — line-up is set!',
+      needTitle: 'Please enter a match name.',
+      needDate: 'Please pick a date.',
+      needPlace: 'Please enter a location.',
+      dateInPast: 'The date cannot be in the past.',
+      teamSizeRange: 'Players per team must be between 2 and 30.',
+      teamSizeTooLow: 'Cannot be smaller than the number of players already joined.',
+      confirmCancel: 'Really cancel this match? It stays visible but locked.',
+      matchCancelled: 'Match cancelled.',
+      matchLocked: 'This match is cancelled and locked.',
+      statusOpen: 'Open',
+      statusFull: 'Full',
+      statusCancelled: 'Cancelled',
+      cancelMatch: '🚫 Cancel Match',
+      reopenMatch: '↺ Reopen',
       nameTaken: 'That name is already in this match.',
       alreadyBooked: 'You are already booked for a game that day.',
       needLogin: 'Please sign in first.',
@@ -337,6 +366,20 @@ export default function TakwiraApp() {
       onlyOwnPlayer: 'Tu peux seulement retirer ta propre entrée.',
       teamFull: 'Équipe complète!',
       matchFixed: 'Match complet — composition prête!',
+      needTitle: 'Entre un nom de match.',
+      needDate: 'Choisis une date.',
+      needPlace: 'Entre un lieu.',
+      dateInPast: 'La date ne peut pas être dans le passé.',
+      teamSizeRange: 'Joueurs par équipe entre 2 et 30.',
+      teamSizeTooLow: 'Ne peut pas être plus petit que le nombre déjà inscrit.',
+      confirmCancel: 'Annuler ce match? Il reste visible mais verrouillé.',
+      matchCancelled: 'Match annulé.',
+      matchLocked: 'Ce match est annulé et verrouillé.',
+      statusOpen: 'Ouvert',
+      statusFull: 'Complet',
+      statusCancelled: 'Annulé',
+      cancelMatch: '🚫 Annuler le match',
+      reopenMatch: '↺ Rouvrir',
       nameTaken: 'Ce nom est déjà pris dans ce match.',
       alreadyBooked: 'Tu es déjà inscrit à un match ce jour-là.',
       needLogin: 'Connecte-toi d abord.',
@@ -412,6 +455,20 @@ export default function TakwiraApp() {
       onlyOwnPlayer: 'تنجم تنحي كان الاسم متاعك.',
       teamFull: 'الفريق عامر!',
       matchFixed: 'الماتش عامر — التشكيلة جاهزة!',
+      needTitle: 'اكتب اسم الماتش.',
+      needDate: 'اختار تاريخ.',
+      needPlace: 'اكتب الموقع.',
+      dateInPast: 'التاريخ ما يقدرش يكون في الفارط.',
+      teamSizeRange: 'عدد اللاعبين لكل فريق بين 2 و 30.',
+      teamSizeTooLow: 'ما ينجمش يكون اصغر من عدد اللاعبين اللي مسجلين.',
+      confirmCancel: 'تحب تلغي الماتش؟ يبقى ظاهر أما مسكّر.',
+      matchCancelled: 'الماتش انلغى.',
+      matchLocked: 'الماتش هذا انلغى ومسكّر.',
+      statusOpen: 'مفتوح',
+      statusFull: 'عامر',
+      statusCancelled: 'ملغي',
+      cancelMatch: '🚫 الغي الماتش',
+      reopenMatch: '↺ افتحو تاني',
       nameTaken: 'الاسم موجود في الماتش هذا.',
       alreadyBooked: 'راك مسجل في ماتش آخر نفس النهار.',
       needLogin: 'سجل دخول الاول.',
@@ -450,43 +507,123 @@ export default function TakwiraApp() {
   //  FIREBASE FUNKTIONEN
   // ============================================
   const createMatch = async () => {
+    if (saving) return; // Doppelklick blockieren
     if (!user || user.isAnonymous) {
       showMsg(t.guestNoCreate, 'error');
       return;
     }
-    if (
-      !newMatch.organizer.trim() ||
-      !newMatch.opponent.trim() ||
-      !newMatch.date.trim() ||
-      !newMatch.place.trim()
-    )
+    // Validierungen
+    if (!newMatch.opponent.trim()) {
+      showMsg(t.needTitle, 'error');
       return;
-    await addDoc(collection(db, 'matches'), {
-      ...newMatch,
-      teamA: [],
-      teamB: [],
-      creatorUid: user ? user.uid : null,
-      createdAt: Date.now()
-    });
-    setNewMatch({
-      organizer: '',
-      opponent: '',
-      date: '',
-      time: '',
-      place: '',
-      teamSize: 10,
-      teamAName: '',
-      teamBName: '',
-      teamAColor: '#e74c3c',
-      teamBColor: '#2980ef',
-      ballResponsible: '',
-      bibsResponsible: ''
-    });
-    setView('matches');
+    }
+    if (!newMatch.date.trim()) {
+      showMsg(t.needDate, 'error');
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (newMatch.date < today) {
+      showMsg(t.dateInPast, 'error');
+      return;
+    }
+    if (!newMatch.place.trim()) {
+      showMsg(t.needPlace, 'error');
+      return;
+    }
+    const size = Number(newMatch.teamSize) || 0;
+    if (size < 2 || size > 30) {
+      showMsg(t.teamSizeRange, 'error');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await addDoc(collection(db, 'matches'), {
+        ...newMatch,
+        organizer: newMatch.organizer.trim() || (user.displayName || '').split(' ')[0] || '—',
+        opponent: newMatch.opponent.trim(),
+        place: newMatch.place.trim(),
+        teamSize: size,
+        teamA: [],
+        teamB: [],
+        status: 'open',
+        creatorUid: user.uid,
+        createdAt: Date.now()
+      });
+      setNewMatch({
+        organizer: '',
+        opponent: '',
+        date: '',
+        time: '',
+        place: '',
+        teamSize: 10,
+        teamAName: '',
+        teamBName: '',
+        teamAColor: '#e74c3c',
+        teamBColor: '#2980ef',
+        ballResponsible: '',
+        bibsResponsible: ''
+      });
+      setView('matches');
+    } catch (e) {
+      showMsg('Error: ' + e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Match absagen (Organisator) — anders als Löschen: bleibt sichtbar, aber gesperrt
+  const cancelMatch = async () => {
+    if (!currentMatch || !user) return;
+    if (currentMatch.creatorUid !== user.uid) {
+      showMsg(t.onlyCreatorDelete, 'error');
+      return;
+    }
+    if (currentMatch.status === 'cancelled') return;
+    if (!window.confirm(t.confirmCancel)) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'matches', currentMatch.id), { status: 'cancelled' });
+      showMsg(t.matchCancelled, 'success');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Match wieder öffnen (Organisator, falls versehentlich abgesagt)
+  const reopenMatch = async () => {
+    if (!currentMatch || !user) return;
+    if (currentMatch.creatorUid !== user.uid) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'matches', currentMatch.id), { status: 'open' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Effektiver Status: berechnet, nicht nur gespeichert
+  const effectiveStatus = (m) => {
+    if (!m) return 'open';
+    if (m.status === 'cancelled') return 'cancelled';
+    const cap = m.teamSize || 10;
+    const total = (m.teamA?.length || 0) + (m.teamB?.length || 0);
+    if (total >= cap * 2) return 'full';
+    return 'open';
+  };
+
+  const isMatchLocked = (m) => {
+    const s = effectiveStatus(m);
+    return s === 'cancelled';
   };
 
   const addPlayer = async (team) => {
+    if (saving) return;
     if (!currentMatch) return;
+    if (isMatchLocked(currentMatch)) {
+      showMsg(t.matchLocked, 'error');
+      return;
+    }
     if (!user) {
       showMsg(t.needLogin, 'error');
       return;
@@ -548,11 +685,18 @@ export default function TakwiraApp() {
       otherList = otherList.filter((p) => playerUidOf(p) !== user.uid);
     }
 
-    await updateDoc(doc(db, 'matches', currentMatch.id), {
-      [key]: [...list, { name, uid: user.uid }],
-      [otherKey]: otherList
-    });
-    setPlayerName('');
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'matches', currentMatch.id), {
+        [key]: [...list, { name, uid: user.uid }],
+        [otherKey]: otherList
+      });
+      setPlayerName('');
+    } catch (e) {
+      showMsg('Error: ' + e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Name/UID lesen — funktioniert für alte Strings UND neue Objekte
@@ -579,6 +723,11 @@ export default function TakwiraApp() {
   };
 
   const removePlayer = async (team, index) => {
+    if (saving) return;
+    if (isMatchLocked(currentMatch)) {
+      showMsg(t.matchLocked, 'error');
+      return;
+    }
     const key = team === 'A' ? 'teamA' : 'teamB';
     const list = currentMatch[key] || [];
     const p = list[index];
@@ -587,9 +736,14 @@ export default function TakwiraApp() {
       return;
     }
     if (!window.confirm(`${playerNameOf(p)} — ${t.confirmRemovePlayer}`)) return;
-    await updateDoc(doc(db, 'matches', currentMatch.id), {
-      [key]: list.filter((_, i) => i !== index)
-    });
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'matches', currentMatch.id), {
+        [key]: list.filter((_, i) => i !== index)
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteMatch = async (id) => {
@@ -613,6 +767,7 @@ export default function TakwiraApp() {
       date: currentMatch.date || '',
       time: currentMatch.time || '',
       place: currentMatch.place || '',
+      teamSize: currentMatch.teamSize || 10,
       ballResponsible: roleName(currentMatch.ballResponsible),
       bibsResponsible: roleName(currentMatch.bibsResponsible)
     });
@@ -620,10 +775,44 @@ export default function TakwiraApp() {
   };
 
   const saveEdit = async () => {
-    if (!editData.organizer.trim() || !editData.opponent.trim()) return;
-    await updateDoc(doc(db, 'matches', currentMatch.id), { ...editData });
-    setIsEditing(false);
-    setEditData(null);
+    if (saving) return;
+    if (!editData.opponent.trim()) {
+      showMsg(t.needTitle, 'error');
+      return;
+    }
+    if (!editData.date.trim()) {
+      showMsg(t.needDate, 'error');
+      return;
+    }
+    if (!editData.place.trim()) {
+      showMsg(t.needPlace, 'error');
+      return;
+    }
+    // teamSize kann nicht unter die aktuell eingetragenen Spieler pro Team gesenkt werden
+    const newSize = Number(editData.teamSize) || currentMatch.teamSize || 10;
+    if (newSize < 2 || newSize > 30) {
+      showMsg(t.teamSizeRange, 'error');
+      return;
+    }
+    const aCount = currentMatch.teamA?.length || 0;
+    const bCount = currentMatch.teamB?.length || 0;
+    if (newSize < Math.max(aCount, bCount)) {
+      showMsg(t.teamSizeTooLow, 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'matches', currentMatch.id), {
+        ...editData,
+        teamSize: newSize
+      });
+      setIsEditing(false);
+      setEditData(null);
+    } catch (e) {
+      showMsg('Error: ' + e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const copyMatchLink = () => {
@@ -661,18 +850,33 @@ export default function TakwiraApp() {
 
   // Rolle übernehmen (Ball oder Westen) — nur wenn noch frei
   const claimRole = async (roleKey) => {
+    if (saving) return;
     if (!currentMatch || !user) return;
+    if (isMatchLocked(currentMatch)) {
+      showMsg(t.matchLocked, 'error');
+      return;
+    }
     if (roleValueOf(currentMatch[roleKey])) return; // schon vergeben
     const name = (playerName.trim() || window.prompt(t.enterName) || '').trim();
     if (!name) return;
-    await updateDoc(doc(db, 'matches', currentMatch.id), {
-      [roleKey]: { name, uid: user.uid }
-    });
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'matches', currentMatch.id), {
+        [roleKey]: { name, uid: user.uid }
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Rolle wieder freigeben — Claimer selbst ODER Organisator
   const releaseRole = async (roleKey) => {
+    if (saving) return;
     if (!currentMatch || !user) return;
+    if (isMatchLocked(currentMatch)) {
+      showMsg(t.matchLocked, 'error');
+      return;
+    }
     const val = currentMatch[roleKey];
     const uid = roleUidOf(val);
     const isClaimer = uid && uid === user.uid;
@@ -683,7 +887,12 @@ export default function TakwiraApp() {
       return;
     }
     if (!window.confirm(t.confirmRelease)) return;
-    await updateDoc(doc(db, 'matches', currentMatch.id), { [roleKey]: '' });
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'matches', currentMatch.id), { [roleKey]: '' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Rollen-Helfer: funktioniert für alte Strings UND neue Objekte
@@ -1406,19 +1615,31 @@ export default function TakwiraApp() {
                     >
                       ⚽ {match.opponent}
                     </div>
-                    <div
-                      style={{
-                        background:
-                          'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      🎮 {(match.teamA?.length || 0) + (match.teamB?.length || 0)}/{(match.teamSize || 10) * 2}
-                    </div>
+                    {(() => {
+                      const s = effectiveStatus(match);
+                      const bg =
+                        s === 'cancelled'
+                          ? 'linear-gradient(135deg, #7f8c8d 0%, #4a5658 100%)'
+                          : s === 'full'
+                          ? 'linear-gradient(135deg, #27ae60 0%, #1e8449 100%)'
+                          : 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+                      const label =
+                        s === 'cancelled' ? t.statusCancelled : s === 'full' ? t.statusFull : t.statusOpen;
+                      return (
+                        <div
+                          style={{
+                            background: bg,
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {label} · {(match.teamA?.length || 0) + (match.teamB?.length || 0)}/{(match.teamSize || 10) * 2}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div
@@ -1734,6 +1955,7 @@ export default function TakwiraApp() {
             <input
               type="date"
               style={inputStyle}
+              min={new Date().toISOString().slice(0, 10)}
               value={newMatch.date}
               onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })}
             />
@@ -1867,6 +2089,7 @@ export default function TakwiraApp() {
               </button>
               <button
                 onClick={createMatch}
+                disabled={saving}
                 style={{
                   padding: '12px',
                   background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
@@ -1874,10 +2097,11 @@ export default function TakwiraApp() {
                   border: 'none',
                   borderRadius: '10px',
                   fontWeight: '700',
-                  cursor: 'pointer'
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.6 : 1
                 }}
               >
-                {t.save}
+                {saving ? '…' : t.save}
               </button>
             </div>
           </div>
@@ -1980,11 +2204,13 @@ export default function TakwiraApp() {
                 <label style={labelStyle}>{t.opponent}</label>
                 <input style={inputStyle} value={editData.opponent} onChange={(e) => setEditData({ ...editData, opponent: e.target.value })} />
                 <label style={labelStyle}>{t.date}</label>
-                <input type="date" style={inputStyle} value={editData.date} onChange={(e) => setEditData({ ...editData, date: e.target.value })} />
+                <input type="date" style={inputStyle} min={new Date().toISOString().slice(0, 10)} value={editData.date} onChange={(e) => setEditData({ ...editData, date: e.target.value })} />
                 <label style={labelStyle}>{t.time}</label>
                 <input type="time" style={inputStyle} value={editData.time} onChange={(e) => setEditData({ ...editData, time: e.target.value })} />
                 <label style={labelStyle}>{t.location}</label>
                 <input style={inputStyle} value={editData.place} onChange={(e) => setEditData({ ...editData, place: e.target.value })} />
+                <label style={labelStyle}>{t.teamSize}</label>
+                <input type="number" min="2" max="30" style={inputStyle} value={editData.teamSize} onChange={(e) => setEditData({ ...editData, teamSize: e.target.value })} />
                 <label style={labelStyle}>{t.ballResponsible}</label>
                 <input style={inputStyle} value={editData.ballResponsible} onChange={(e) => setEditData({ ...editData, ballResponsible: e.target.value })} />
                 <label style={labelStyle}>{t.bibsResponsible}</label>
@@ -2088,12 +2314,29 @@ export default function TakwiraApp() {
               </div>
             </div>
 
-            {/* STATUS-BANNER: voll = fix, sonst mehr Spieler nötig */}
+            {/* STATUS-BANNER */}
             {(() => {
-              const cap = currentMatch.teamSize || 10;
-              const aFull = (currentMatch.teamA?.length || 0) >= cap;
-              const bFull = (currentMatch.teamB?.length || 0) >= cap;
-              const ready = aFull && bFull;
+              const s = effectiveStatus(currentMatch);
+              if (s === 'cancelled') {
+                return (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: '12px',
+                      marginBottom: '1.25rem',
+                      borderRadius: '12px',
+                      fontWeight: '800',
+                      fontSize: '14px',
+                      background: 'linear-gradient(135deg, rgba(127,140,141,0.25), rgba(74,86,88,0.2))',
+                      border: '2px solid rgba(127,140,141,0.6)',
+                      color: '#bbb'
+                    }}
+                  >
+                    🚫 {t.statusCancelled}
+                  </div>
+                );
+              }
+              const ready = s === 'full';
               return (
                 <div
                   style={{
@@ -2294,13 +2537,38 @@ export default function TakwiraApp() {
               const isCreator =
                 !currentMatch.creatorUid ||
                 (user && currentMatch.creatorUid === user.uid);
+              const isCancelled = effectiveStatus(currentMatch) === 'cancelled';
               return (
-                <div style={{ display: 'grid', gridTemplateColumns: isCreator ? '1fr 1fr' : '1fr', gap: '10px' }}>
-                  <button onClick={copyMatchLink} style={{ padding: '12px', background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>{t.copyLink}</button>
+                <>
                   {isCreator && (
-                    <button onClick={() => deleteMatch(currentMatch.id)} style={{ padding: '12px', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255, 99, 71, 0.4)', color: '#ff6347', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>{t.delete}</button>
+                    <button
+                      onClick={isCancelled ? reopenMatch : cancelMatch}
+                      disabled={saving}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        marginBottom: '10px',
+                        background: isCancelled
+                          ? 'linear-gradient(135deg, #27ae60 0%, #1e8449 100%)'
+                          : 'rgba(255,255,255,0.1)',
+                        border: isCancelled ? 'none' : '2px solid rgba(243, 156, 18, 0.5)',
+                        color: isCancelled ? '#fff' : '#f39c12',
+                        borderRadius: '10px',
+                        fontWeight: '700',
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        opacity: saving ? 0.6 : 1
+                      }}
+                    >
+                      {isCancelled ? t.reopenMatch : t.cancelMatch}
+                    </button>
                   )}
-                </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: isCreator ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                    <button onClick={copyMatchLink} style={{ padding: '12px', background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>{t.copyLink}</button>
+                    {isCreator && (
+                      <button onClick={() => deleteMatch(currentMatch.id)} disabled={saving} style={{ padding: '12px', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255, 99, 71, 0.4)', color: '#ff6347', borderRadius: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{t.delete}</button>
+                    )}
+                  </div>
+                </>
               );
             })()}
           </div>
